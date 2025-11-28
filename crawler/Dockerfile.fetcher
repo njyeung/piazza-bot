@@ -1,0 +1,10 @@
+FROM crawler-base
+
+# Copy fetcher application code
+COPY crawler/fetch.py ./crawler/
+
+# Create downloads directory
+RUN mkdir -p /volume
+
+# Run the fetcher
+CMD ["python", "-u", "crawler/fetch.py"]

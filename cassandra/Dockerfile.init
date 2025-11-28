@@ -1,0 +1,13 @@
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install cassandra driver
+RUN pip install --no-cache-dir cassandra-driver
+
+# Copy database initialization script
+COPY cassandra/init_db.py ./cassandra/
+
+# Run the init script
+CMD ["python", "-u", "cassandra/init_db.py"]

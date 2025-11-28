@@ -1,0 +1,26 @@
+FROM ubuntu:22.04
+
+# Install dependencies
+RUN apt-get update && apt-get install -y wget curl openjdk-17-jdk python3-pip iproute2
+
+# Install Python packages
+RUN pip3 install cassandra-driver==3.28.0
+
+# Download and install Cassandra
+RUN wget https://dlcdn.apache.org/cassandra/5.0.6/apache-cassandra-5.0.6-bin.tar.gz && \
+    tar -xf apache-cassandra-5.0.6-bin.tar.gz && \
+    rm apache-cassandra-5.0.6-bin.tar.gz
+
+# Set environment variables - find Java home and add to PATH
+RUN JAVA_DIR=$(dirname $(dirname $(readlink -f $(which java)))) && \
+    echo "export JAVA_HOME=$JAVA_DIR" >> /etc/environment && \
+    echo "export PATH=\$PATH:$JAVA_DIR/bin:/apache-cassandra-5.0.6/bin" >> /etc/environment
+
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+ENV PATH="${PATH}:/usr/lib/jvm/java-17-openjdk-amd64/bin:/apache-cassandra-5.0.6/bin"
+
+# Copy startup script
+COPY cassandra/cassandra.sh /cassandra.sh
+
+# Run the startup script
+CMD ["sh", "/cassandra.sh"]

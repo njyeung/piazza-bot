@@ -1,0 +1,7 @@
+FROM crawler-base
+
+# Copy watcher application code
+COPY crawler/watcher.py ./crawler/
+
+# Run the watcher
+CMD ["python", "-u", "crawler/watcher.py"]

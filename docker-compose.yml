@@ -1,0 +1,107 @@
+version: '3.8'
+
+services:
+  # Cassandra cluster (3 nodes)
+  db-1:
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: cassandra/Dockerfile.cassandra
+    container_name: db-1
+    ports:
+      - "9042:9042"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    restart: unless-stopped
+
+  db-2:
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: cassandra/Dockerfile.cassandra
+    container_name: db-2
+    depends_on:
+      - db-1
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    restart: unless-stopped
+
+  db-3:
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: cassandra/Dockerfile.cassandra
+    container_name: db-3
+    depends_on:
+      - db-1
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    restart: unless-stopped
+
+  db_init:
+    build:
+      context: .
+      dockerfile: cassandra/Dockerfile.init
+    container_name: db-init
+    depends_on:
+      - db-1
+      - db-2
+      - db-3
+    environment:
+      - CASSANDRA_HOSTS=db-1,db-2,db-3
+      - CASSANDRA_KEYSPACE=transcript_db
+    restart: on-failure:3
+
+  # web crawler
+  redis:
+    image: redis:7-alpine
+    container_name: crawler-redis
+    ports:
+      - "6379:6379"
+  fetcher:
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: crawler/Dockerfile.fetcher
+    depends_on:
+      redis:
+        condition: service_started
+      db_init:
+        condition: service_completed_successfully
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_QUEUE=frontier
+      - CASSANDRA_HOSTS=db-1,db-2,db-3
+      - CASSANDRA_KEYSPACE=transcript_db
+    volumes:
+      - ./volume:/volume
+    restart: unless-stopped
+    deploy:
+      replicas: 3
+
+  watcher:
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: crawler/Dockerfile.watcher
+    container_name: crawler-watcher
+    depends_on:
+      redis:
+        condition: service_started
+      db_init:
+        condition: service_completed_successfully
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_QUEUE=frontier
+      - REDIS_SEEN_SET=seen
+      - SCHEDULE_URL=https://tyler.caraza-harter.com/cs544/f25/schedule.html
+      - POLL_INTERVAL=300
+    restart: unless-stopped
