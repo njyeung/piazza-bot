@@ -1,3 +1,5 @@
+DO NOT PUT SECRETS IN THE .ENV IT IS FOR DOCKER STUFF AND GETS PUSHED
+
 # piazza-bot
 
 Architecure:
