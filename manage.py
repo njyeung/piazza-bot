@@ -1,7 +1,4 @@
-#!/usr/bin/env python3
 """
-Django-style management script for the Piazza Slop Bot.
-
 Usage:
     python manage.py apply    # Sync parsers/ directory to Cassandra (idempotent)
     python manage.py list     # List parsers in Cassandra
@@ -12,7 +9,6 @@ import os
 from pathlib import Path
 from cassandra.cluster import Cluster
 
-# Configuration
 CASSANDRA_HOST = os.getenv('CASSANDRA_HOST', 'localhost')
 CASSANDRA_PORT = int(os.getenv('CASSANDRA_PORT', 9042))
 CASSANDRA_KEYSPACE = os.getenv('CASSANDRA_KEYSPACE', 'transcript_db')
@@ -57,11 +53,8 @@ def apply_command(session):
         print(f"Error: Parsers directory not found at {PARSERS_DIR}")
         return
 
-    # Find all .py files except base.py and __init__.py
-    parser_files = [
-        f for f in PARSERS_DIR.glob("*.py")
-        if f.stem not in ['base', '__init__']
-    ]
+    # Find all .py files
+    parser_files = [f for f in PARSERS_DIR.glob("*.py")]
 
     local_parser_names = {f.stem for f in parser_files}
     print(f"Found {len(parser_files)} parser(s) in local directory\n")
@@ -93,11 +86,11 @@ def apply_command(session):
                     code_text
                 ))
 
-                print(f"  ✓ {parser_name}")
+                print(f"{parser_name}")
                 applied_count += 1
 
             except Exception as e:
-                print(f"  ✗ Failed to apply {parser_file.name}: {e}")
+                print(f"Failed to apply {parser_file.name}: {e}")
         print()
 
     # Delete parsers that no longer exist locally
@@ -108,10 +101,10 @@ def apply_command(session):
         for parser_name in to_delete:
             try:
                 session.execute(delete_stmt, (parser_name,))
-                print(f"  ✓ Deleted: {parser_name}")
+                print(f"Deleted: {parser_name}")
                 deleted_count += 1
             except Exception as e:
-                print(f"  ✗ Failed to delete {parser_name}: {e}")
+                print(f"Failed to delete {parser_name}: {e}")
         print()
 
     # Summary
@@ -134,8 +127,6 @@ def list_command(session):
         print(f"  - {row.parser_name}")
 
     print(f"\nTotal: {len(parsers)} parser(s)")
-
-
 
 
 def print_usage():
