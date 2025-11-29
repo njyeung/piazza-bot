@@ -62,6 +62,9 @@ services:
   redis:
     image: redis:7-alpine
     container_name: crawler-redis
+    command: ["redis-server", "--save", "", "--appendonly", "no"]  # disable persistence
+    tmpfs:
+      - /data  # keep data in RAM
     ports:
       - "6379:6379"
   fetcher:
@@ -102,6 +105,6 @@ services:
       - REDIS_PORT=6379
       - REDIS_QUEUE=frontier
       - REDIS_SEEN_SET=seen
-      - SCHEDULE_URL=https://tyler.caraza-harter.com/cs544/f25/schedule.html
-      - POLL_INTERVAL=300
+      - CASSANDRA_HOSTS=db-1,db-2,db-3
+      - CASSANDRA_KEYSPACE=transcript_db
     restart: unless-stopped

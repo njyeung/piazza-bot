@@ -43,7 +43,6 @@ RUN curl -s https://googlechromelabs.github.io/chrome-for-testing/last-known-goo
     && chmod +x /usr/local/bin/chrome /usr/local/bin/chromedriver \
     && rm -rf /tmp/*.zip /tmp/versions.json
 
-# Set working directory
 WORKDIR /app
 
 # Copy requirements and install Python dependencies

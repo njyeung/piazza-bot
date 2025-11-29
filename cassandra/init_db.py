@@ -42,50 +42,45 @@ def create_keyspace(session):
     session.execute(create_keyspace_query)
     print(f"Keyspace '{CASSANDRA_KEYSPACE}' created successfully")
 
-def create_table(session):
+def create_transcript_table(session):
     """Create transcripts table"""
     print(f"\nCreating table: {CASSANDRA_KEYSPACE}.transcripts")
 
     session.set_keyspace(CASSANDRA_KEYSPACE)
 
-    create_table_query = """
+    create_transcript_table_query = """
     CREATE TABLE IF NOT EXISTS transcripts (
-        url text PRIMARY KEY,
+        class_name text,
+        professor text,
+        semester text,
+        url text,
+        lecture_number int,
         lecture_title text,
         transcript_text text,
-        file_path text,
         downloaded_at timestamp,
-        status text
+        status text,
+        PRIMARY KEY ((class_name, professor, semester), url)
+    )
+    """
+
+    session.execute(create_transcript_table_query)
+    print("Table 'transcripts' created successfully")
+
+def create_parsers_table(session):
+    """Create parsers table for storing parser code"""
+    print(f"\nCreating table: {CASSANDRA_KEYSPACE}.parsers")
+
+    session.set_keyspace(CASSANDRA_KEYSPACE)
+
+    create_table_query = """
+    CREATE TABLE IF NOT EXISTS parsers (
+        parser_name text PRIMARY KEY,
+        code_text text
     )
     """
 
     session.execute(create_table_query)
-    print("Table 'transcripts' created successfully")
-
-def describe_table(session):
-    """Describe the transcripts table to verify schema"""
-    print(f"\nDescribing table: {CASSANDRA_KEYSPACE}.transcripts")
-
-    session.set_keyspace(CASSANDRA_KEYSPACE)
-
-    # Get table metadata
-    cluster_metadata = session.cluster.metadata
-    keyspace_metadata = cluster_metadata.keyspaces[CASSANDRA_KEYSPACE]
-    table_metadata = keyspace_metadata.tables['transcripts']
-
-    print("\n=== Table Schema ===")
-    print(f"Table: {table_metadata.name}")
-    print(f"Keyspace: {CASSANDRA_KEYSPACE}")
-    print("\nColumns:")
-    for column_name, column in table_metadata.columns.items():
-        is_pk = "(PRIMARY KEY)" if column_name in [c.name for c in table_metadata.primary_key] else ""
-        print(f"  - {column_name}: {column.cql_type} {is_pk}")
-
-    print("\nPrimary Key:")
-    for pk_column in table_metadata.primary_key:
-        print(f"  - {pk_column.name}")
-
-    print("\n=== Schema verification complete ===\n")
+    print("Table 'parsers' created successfully")
 
 def main():
     """Main initialization function"""
@@ -98,11 +93,9 @@ def main():
         # Create keyspace
         create_keyspace(session)
 
-        # Create table
-        create_table(session)
-
-        # Describe table to verify
-        describe_table(session)
+        # Create tables
+        create_transcript_table(session)
+        create_parsers_table(session)
 
         print("Database initialization completed successfully!")
 

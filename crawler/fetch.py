@@ -6,6 +6,7 @@ from selenium.webdriver.support import expected_conditions as EC
 import time
 import os
 import redis
+import json
 
 # Configuration from environment variables
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
@@ -66,22 +67,33 @@ def fetch_transcript(url) -> bool:
         driver.quit()
 
 def main():
-    """Main loop to process URLs from Redis queue"""
+    """Main loop to process lecture data from Redis queue"""
     print(f"Connecting to Redis at {REDIS_HOST}:{REDIS_PORT}")
     r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 
-    print(f"Waiting for URLs on queue: {REDIS_QUEUE}")
+    print(f"Waiting for lectures on queue: {REDIS_QUEUE}")
 
     while True:
         try:
-            # wait for a link from the redis queue
+            # wait for a lecture JSON from the redis queue
             result = r.blpop(REDIS_QUEUE)
 
             if result:
-                _, url = result
-                print(f"\nReceived URL from queue: {url}")
+                _, json_str = result
+
+                # Parse the JSON
+                lecture = json.loads(json_str)
+
+                # Print all fields to verify
+                print(f"\nReceived lecture from queue:")
+                print(f"  Class: {lecture.get('class_name')}")
+                print(f"  Professor: {lecture.get('professor')}")
+                print(f"  Semester: {lecture.get('semester')}")
+                print(f"  Title: {lecture.get('lecture_title')}")
+                print(f"  URL: {lecture.get('url')}")
 
                 # Process the URL
+                url = lecture.get('url')
                 success = fetch_transcript(url)
 
                 if success:
@@ -92,9 +104,12 @@ def main():
         except redis.ConnectionError as e:
             # Wait before retrying
             print(f"Redis connection error: {e}")
-            time.sleep(5)  
+            time.sleep(5)
         except KeyboardInterrupt:
             break
+        except json.JSONDecodeError as e:
+            print(f"Failed to parse JSON: {e}")
+            time.sleep(1)
         except Exception as e:
             print(f"Unexpected error: {e}")
             time.sleep(1)
