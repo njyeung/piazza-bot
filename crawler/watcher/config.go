@@ -21,41 +21,23 @@ type Config struct {
 // LoadConfig loads configuration from environment variables
 func LoadConfig() *Config {
 	hostsEnv := os.Getenv("CASSANDRA_HOSTS")
-	if hostsEnv == "" {
-		hostsEnv = "cassandra-1"
-	}
 
 	// Split comma-separated hosts
 	hosts := strings.Split(hostsEnv, ",")
 
 	keyspace := os.Getenv("CASSANDRA_KEYSPACE")
-	if keyspace == "" {
-		keyspace = "transcript_db"
-	}
 
 	pollInterval := 60 * time.Second
 
 	parsersDir := "./parsers"
 
 	redisHost := os.Getenv("REDIS_HOST")
-	if redisHost == "" {
-		redisHost = "localhost"
-	}
 
 	redisPort := os.Getenv("REDIS_PORT")
-	if redisPort == "" {
-		redisPort = "6379"
-	}
 
 	redisQueue := os.Getenv("REDIS_QUEUE")
-	if redisQueue == "" {
-		redisQueue = "frontier"
-	}
 
 	redisSeenSet := os.Getenv("REDIS_SEEN_SET")
-	if redisSeenSet == "" {
-		redisSeenSet = "seen"
-	}
 
 	return &Config{
 		CassandraHosts:    hosts,

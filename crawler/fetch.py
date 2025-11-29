@@ -7,14 +7,24 @@ import time
 import os
 import redis
 import json
+import tempfile
+import glob
+from cassandra.cluster import Cluster
 
 # Configuration from environment variables
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
 REDIS_QUEUE = os.getenv('REDIS_QUEUE', 'frontier')
 
-def fetch_transcript(url) -> bool:
-    """Fetch and download transcript for a given video URL"""
+CASSANDRA_HOSTS = os.getenv('CASSANDRA_HOSTS', 'localhost').split(',')
+CASSANDRA_KEYSPACE = os.getenv('CASSANDRA_KEYSPACE', 'transcript_db')
+
+def fetch_transcript(url):
+    """Fetch and download transcript for a given Laltura Gallery URL"""
+
+    # temp dir for storing transcripts
+    temp_dir = tempfile.mkdtemp(prefix="transcript_")
+
     chrome_options = webdriver.ChromeOptions()
     chrome_options.binary_location = "/usr/local/bin/chrome"
 
@@ -25,7 +35,7 @@ def fetch_transcript(url) -> bool:
     chrome_options.add_argument('--disable-gpu')
 
     prefs = {
-        "download.default_directory": "/volume",
+        "download.default_directory": temp_dir,
         "download.prompt_for_download": False,
         "directory_upgrade": True,
     }
@@ -55,19 +65,61 @@ def fetch_transcript(url) -> bool:
         )
         download_overlay_item.click()
 
-        # wait for download to complete
-        time.sleep(3)
-        print(f"Successfully downloaded transcript for: {url}")
-        return True
-
+        # Wait for newly downloaded file to appear
+        downloaded_file = None
+        for _ in range(5): # poll for 15 secs
+            time.sleep(3)
+            files = glob.glob(os.path.join(temp_dir, "*"))
+            if files:
+                downloaded_file = files[0]
+                if not downloaded_file.endswith(".crdownload"):
+                    break
+        
+        if not downloaded_file or downloaded_file.endswith(".crdownload"):
+            print("Download did not finish.")
+            return None
+        
+        with open(downloaded_file, "r", encoding="utf-8", errors="ignore") as f:
+            transcript_text = f.read()
+        
+        print("Successfully fetched transcript text.")
+        return transcript_text
+    
     except Exception as e:
         print(f"No transcript available {url}: {e}")
-        return False
+        return None
     finally:
         driver.quit()
 
+        try:
+            for f in glob.glob(os.path.join(temp_dir, "*")):
+                os.remove(f)
+            os.rmdir(temp_dir)
+        except:
+            pass
+
+
 def main():
     """Main loop to process lecture data from Redis queue"""
+
+    print(f"Connecting to Cassandra at hosts: {CASSANDRA_HOSTS}, keyspace: {CASSANDRA_KEYSPACE}")
+    cluster = Cluster(CASSANDRA_HOSTS)
+    session = cluster.connect(CASSANDRA_KEYSPACE)
+
+    insert_transcript_stmt = session.prepare("""
+        INSERT INTO transcripts (
+            class_name,
+            professor,
+            semester,
+            url,
+            lecture_number,
+            lecture_title,
+            transcript_text,
+            downloaded_at,
+            status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, toTimestamp(now()), ?)
+    """)
+
     print(f"Connecting to Redis at {REDIS_HOST}:{REDIS_PORT}")
     r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 
@@ -81,25 +133,29 @@ def main():
             if result:
                 _, json_str = result
 
-                # Parse the JSON
                 lecture = json.loads(json_str)
-
-                # Print all fields to verify
-                print(f"\nReceived lecture from queue:")
-                print(f"  Class: {lecture.get('class_name')}")
-                print(f"  Professor: {lecture.get('professor')}")
-                print(f"  Semester: {lecture.get('semester')}")
-                print(f"  Title: {lecture.get('lecture_title')}")
-                print(f"  URL: {lecture.get('url')}")
-
-                # Process the URL
+                
                 url = lecture.get('url')
-                success = fetch_transcript(url)
+                transcript = fetch_transcript(url)
 
-                if success:
-                    print(f"Completed: {url}\n")
+                if transcript:
+                    status = "success"
                 else:
-                    print(f"No transcript found: {url}\n")
+                    status = "missing"
+
+                session.execute(
+                    insert_transcript_stmt,
+                    (
+                        lecture.get("class_name"),
+                        lecture.get("professor"),
+                        lecture.get("semester"),
+                        url,
+                        lecture.get("lecture_number"),
+                        lecture.get("lecture_title"),
+                        transcript,
+                        status,
+                    ),
+                )
 
         except redis.ConnectionError as e:
             # Wait before retrying
@@ -113,6 +169,12 @@ def main():
         except Exception as e:
             print(f"Unexpected error: {e}")
             time.sleep(1)
+        finally:
+            try:
+                session.shutdown()
+                cluster.shutdown()
+            except Exception:
+                pass
 
 if __name__ == "__main__":
     main()

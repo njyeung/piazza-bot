@@ -67,6 +67,7 @@ services:
       - /data  # keep data in RAM
     ports:
       - "6379:6379"
+    
   fetcher:
     platform: linux/amd64
     build:
@@ -83,8 +84,6 @@ services:
       - REDIS_QUEUE=frontier
       - CASSANDRA_HOSTS=db-1,db-2,db-3
       - CASSANDRA_KEYSPACE=transcript_db
-    volumes:
-      - ./volume:/volume
     restart: unless-stopped
     deploy:
       replicas: 3

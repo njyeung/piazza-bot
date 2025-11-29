@@ -52,7 +52,7 @@ def main():
                         "professor": "Tyler",
                         "semester": "FALL25",
                         "url": href,
-                        "lecture_title": text.strip()
+                        "lecture_title": "FILLER TITLE"
                     }
                     print(json.dumps(lecture_data))
 
