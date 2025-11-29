@@ -57,12 +57,10 @@ def apply_command(session):
     parser_files = [f for f in PARSERS_DIR.glob("*.py")]
 
     local_parser_names = {f.stem for f in parser_files}
-    print(f"Found {len(parser_files)} parser(s) in local directory\n")
 
     # Get existing parsers from Cassandra
     rows = session.execute("SELECT parser_name FROM parsers")
     cassandra_parser_names = {row.parser_name for row in rows}
-    print(f"Found {len(cassandra_parser_names)} parser(s) in Cassandra\n")
 
     # Determine what needs to be added/updated vs deleted
     to_apply = local_parser_names
@@ -86,7 +84,7 @@ def apply_command(session):
                     code_text
                 ))
 
-                print(f"{parser_name}")
+                print(f"Applied: {parser_name}")
                 applied_count += 1
 
             except Exception as e:
@@ -96,7 +94,7 @@ def apply_command(session):
     # Delete parsers that no longer exist locally
     deleted_count = 0
     if to_delete:
-        print("Removing parsers no longer in local directory:")
+        print("Removing parsers:")
         delete_stmt = session.prepare("DELETE FROM parsers WHERE parser_name = ?")
         for parser_name in to_delete:
             try:
@@ -130,14 +128,7 @@ def list_command(session):
 
 
 def print_usage():
-    """Print usage information"""
     print(__doc__)
-    print("\nAvailable commands:")
-    print("  apply    Sync parsers/ directory to Cassandra (adds/updates/removes)")
-    print("  list     List all parsers in Cassandra")
-    print("\nExamples:")
-    print("  python manage.py apply")
-    print("  python manage.py list")
 
 
 def main():
