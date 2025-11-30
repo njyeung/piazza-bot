@@ -162,6 +162,8 @@ def main():
             print(f"Redis connection error: {e}")
             time.sleep(5)
         except KeyboardInterrupt:
+            print("Shutting down...")
+            cluster.shutdown()
             break
         except json.JSONDecodeError as e:
             print(f"Failed to parse JSON: {e}")
@@ -169,12 +171,6 @@ def main():
         except Exception as e:
             print(f"Unexpected error: {e}")
             time.sleep(1)
-        finally:
-            try:
-                session.shutdown()
-                cluster.shutdown()
-            except Exception:
-                pass
 
 if __name__ == "__main__":
     main()

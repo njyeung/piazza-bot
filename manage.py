@@ -47,7 +47,6 @@ def read_parser_file(file_path):
 
 def apply_command(session):
     """Apply local parsers/ directory state to Cassandra (adds, updates, deletes)"""
-    print(f"Scanning {PARSERS_DIR} for parser files...\n")
 
     if not PARSERS_DIR.exists():
         print(f"Error: Parsers directory not found at {PARSERS_DIR}")

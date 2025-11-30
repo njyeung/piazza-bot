@@ -6,26 +6,19 @@ import sys
 # Configuration from environment variables
 CASSANDRA_HOSTS = os.getenv('CASSANDRA_HOSTS', 'cassandra-1').split(',')
 CASSANDRA_KEYSPACE = os.getenv('CASSANDRA_KEYSPACE', 'transcript_db')
-MAX_RETRIES = 30
 RETRY_DELAY = 5
 
 def wait_for_cassandra():
     """Wait for Cassandra cluster to be ready with retry logic"""
-    for attempt in range(MAX_RETRIES):
+    while True:
         try:
-            print(f"[Attempt {attempt + 1}/{MAX_RETRIES}] Connecting to Cassandra at {CASSANDRA_HOSTS}...")
+            print(f"Connecting to Cassandra at {CASSANDRA_HOSTS}...")
             cluster = Cluster(CASSANDRA_HOSTS)
             session = cluster.connect()
             print("Successfully connected to Cassandra!")
             return cluster, session
         except Exception as e:
-            print(f"Connection failed: {e}")
-            if attempt < MAX_RETRIES - 1:
-                print(f"Retrying in {RETRY_DELAY} seconds...")
-                time.sleep(RETRY_DELAY)
-            else:
-                print("Max retries reached. Exiting.")
-                sys.exit(1)
+            time.sleep(RETRY_DELAY)
 
 def create_keyspace(session):
     """Create keyspace with replication factor 3"""
@@ -84,7 +77,6 @@ def create_parsers_table(session):
 
 def main():
     """Main initialization function"""
-    print("=== Cassandra Database Initialization ===\n")
 
     # Connect to Cassandra
     cluster, session = wait_for_cassandra()
@@ -97,7 +89,7 @@ def main():
         create_transcript_table(session)
         create_parsers_table(session)
 
-        print("Database initialization completed successfully!")
+        print("Database initialization completed successfully")
 
     except Exception as e:
         print(f"Error during initialization: {e}")
