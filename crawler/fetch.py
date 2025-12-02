@@ -20,7 +20,7 @@ CASSANDRA_HOSTS = os.getenv('CASSANDRA_HOSTS', 'localhost').split(',')
 CASSANDRA_KEYSPACE = os.getenv('CASSANDRA_KEYSPACE', 'transcript_db')
 
 def fetch_transcript(url):
-    """Fetch and download transcript for a given Laltura Gallery URL"""
+    """Fetch and download transcript for a given Kaltura Gallery URL"""
 
     # temp dir for storing transcripts
     temp_dir = tempfile.mkdtemp(prefix="transcript_")
