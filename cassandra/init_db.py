@@ -75,6 +75,45 @@ def create_parsers_table(session):
     session.execute(create_table_query)
     print("Table 'parsers' created successfully")
 
+def create_embeddings_table(session):
+    """Create embeddings table for storing chunk embeddings with vector search"""
+    print(f"\nCreating table: {CASSANDRA_KEYSPACE}.embeddings")
+
+    session.set_keyspace(CASSANDRA_KEYSPACE)
+
+    create_table_query = """
+    CREATE TABLE IF NOT EXISTS embeddings (
+        class_name text,
+        professor text,
+        semester text,
+        url text,
+        chunk_index int,
+        chunk_text text,
+        embedding VECTOR<FLOAT, 1024>,
+        token_count int,
+        lecture_title text,
+        lecture_timestamp text,
+        created_at timestamp,
+        PRIMARY KEY ((class_name, professor, semester), url, chunk_index)
+    )
+    """
+
+    session.execute(create_table_query)
+    print("Table 'embeddings' created successfully")
+
+    # Create ANN index for vector search
+    create_index_query = """
+    CREATE INDEX IF NOT EXISTS embeddings_ann_idx
+    ON embeddings(embedding)
+    USING 'SAI'
+    """
+
+    try:
+        session.execute(create_index_query)
+        print("ANN index 'embeddings_ann_idx' created successfully")
+    except Exception as e:
+        print(f"Note: ANN index creation may require Cassandra 5.0+: {e}")
+
 def main():
     """Main initialization function"""
 
@@ -88,8 +127,9 @@ def main():
         # Create tables
         create_transcript_table(session)
         create_parsers_table(session)
+        create_embeddings_table(session)
 
-        print("Database initialization completed successfully")
+        print("\nDatabase initialization completed successfully")
 
     except Exception as e:
         print(f"Error during initialization: {e}")

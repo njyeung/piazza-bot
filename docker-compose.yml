@@ -64,7 +64,7 @@ services:
     container_name: crawler-redis
     command: ["redis-server", "--save", "", "--appendonly", "no"]  # disable persistence
     tmpfs:
-      - /data  # keep data in RAM
+      - /data
     ports:
       - "6379:6379"
     
@@ -107,3 +107,30 @@ services:
       - CASSANDRA_HOSTS=db-1,db-2,db-3
       - CASSANDRA_KEYSPACE=transcript_db
     restart: unless-stopped
+
+  # # Kafka message broker
+  # kafka:
+  #   platform: linux/amd64
+  #   build:
+  #     context: .
+  #     dockerfile: kafka/Dockerfile.kafka
+  #   container_name: kafka-broker
+  #   ports:
+  #     - "9092:9092"
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 512M
+  #   restart: unless-stopped
+
+  # kafka_init:
+  #   build:
+  #     context: .
+  #     dockerfile: kafka/Dockerfile.init
+  #   container_name: kafka-init
+  #   depends_on:
+  #     - kafka
+  #   environment:
+  #     - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+  #     - KAFKA_TOPIC=transcript-events
+  #   restart: on-failure:3

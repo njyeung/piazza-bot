@@ -1,0 +1,13 @@
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install kafka-python driver
+RUN pip install --no-cache-dir kafka-python
+
+# Copy Kafka initialization script
+COPY kafka/init_kafka.py ./kafka/
+
+# Run the init script
+CMD ["python", "-u", "kafka/init_kafka.py"]
