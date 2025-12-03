@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Cassandra cluster (3 nodes)
   db-1:
