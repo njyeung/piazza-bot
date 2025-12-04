@@ -3,10 +3,19 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 )
 
 func main() {
 	config := LoadConfig()
+
+	// Load tokenizer
+	tokenizerPath := filepath.Join(".", "..", "embedding", "tokenizer.json")
+	err := InitTokenizer(tokenizerPath)
+	if err != nil {
+		log.Fatalf("Failed to load tokenizer: %v", err)
+	}
 
 	// Load embedding model
 	embeddingModel, err := InitEmbeddingModel()
@@ -95,10 +104,19 @@ func main() {
 		}
 	}
 
-	// Perform semantic chunking
+	// Perform semantic chunking with default config
 	fmt.Println("Performing semantic chunking...")
-	chunks := SemanticChunk(sentences, float32(config.SimilarityThreshold))
+	chunkingCfg := DefaultChunkingConfig()
+	chunks := chunkingCfg.ExtractChunksFromSentences(sentences, float32(config.SimilarityThreshold))
 	fmt.Printf("Created %d chunks from %d sentences\n\n", len(chunks), len(sentences))
+
+	// Finalize chunk embeddings with accurate model embeddings
+	fmt.Println("Finalizing chunk embeddings...")
+	err = FinalizeChunkEmbeddings(chunks, embeddingModel)
+	if err != nil {
+		log.Fatalf("Failed to finalize chunk embeddings: %v", err)
+	}
+	fmt.Println("Successfully finalized chunk embeddings\n")
 
 	// Show chunk statistics
 	fmt.Println("Chunk statistics:")
@@ -113,4 +131,33 @@ func main() {
 			fmt.Printf("  Text: %s\n\n", chunk.Text)
 		}
 	}
+
+	// Write chunks to file
+	fmt.Println("Writing chunks to disk...")
+	err = WriteChunksToFile(chunks, "chunks_output.txt")
+	if err != nil {
+		log.Fatalf("Failed to write chunks to file: %v", err)
+	}
+	fmt.Println("Chunks written to chunks_output.txt")
+}
+
+// WriteChunksToFile writes all chunks to a file with detailed information
+func WriteChunksToFile(chunks []Chunk, filename string) error {
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	for i, chunk := range chunks {
+		fmt.Fprintf(file, "===== CHUNK %d =====\n", i)
+		fmt.Fprintf(file, "Start Time: %s\n", chunk.StartTime)
+		fmt.Fprintf(file, "Sentences: %d\n", chunk.NumSentences)
+		fmt.Fprintf(file, "Token Count: %d\n", chunk.TokenCount)
+		fmt.Fprintf(file, "\n--- TEXT ---\n")
+		fmt.Fprintf(file, "%s\n", chunk.Text)
+		fmt.Fprintf(file, "\n\n")
+	}
+
+	return nil
 }

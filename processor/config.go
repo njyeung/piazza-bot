@@ -13,6 +13,6 @@ func LoadConfig() *Config {
 	return &Config{
 		CassandraHosts:      []string{"localhost"},
 		CassandraKeyspace:   "transcript_db",
-		SimilarityThreshold: 0.75,
+		SimilarityThreshold: 0.83,
 	}
 }

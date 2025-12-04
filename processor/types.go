@@ -19,7 +19,7 @@ type Sentence struct {
 type Chunk struct {
 	Text               string
 	StartTime          string
-	Embedding          []float32 // Averaged from sentence embeddings
+	Embedding          []float32
 	NumSentences       int
 	TokenCount         int
 	ChunkIndex         int

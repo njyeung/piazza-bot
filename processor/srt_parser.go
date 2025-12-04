@@ -1,16 +1,15 @@
 package main
 
 import (
-	"regexp"
 	"strings"
 )
 
 // ParseSRT parses SRT transcript text and returns array of Frames.
 func ParseSRT(transcriptText string) []Frame {
-	//	1
-	//	00:00:00,000 --> 00:00:01,830
-	//	I'm happy to
-	//	have you here today.
+	//	1									sequence number
+	//	00:00:00,000 --> 00:00:01,830		start --> end
+	//	I'm happy to						line
+	//	have you here today.				line
 	//
 	//	2
 	//	00:00:01,910 --> 00:00:03,610
@@ -61,18 +60,8 @@ func ParseSRT(transcriptText string) []Frame {
 	return frames
 }
 
-// isDigitOnly checks if a string contains only digits
-func isDigitOnly(s string) bool {
-	for _, r := range s {
-		if r < '0' || r > '9' {
-			return false
-		}
-	}
-	return len(s) > 0
-}
-
-// ExtractSentencesFromFrames merges frames into sentences based on sentence boundaries
-// A sentence is text ending with . or ?
+// Merges frames into sentences based on sentence boundaries
+// A sentence is text ending with . or ? or !
 func ExtractSentencesFromFrames(frames []Frame) []Sentence {
 	if len(frames) == 0 {
 		return []Sentence{}
@@ -98,15 +87,16 @@ func ExtractSentencesFromFrames(frames []Frame) []Sentence {
 		}
 		currentSentenceText.WriteString(frame.Text)
 
-		// Check if this frame ends with . or ?
+		// Check if this frame ends with . or ? or !
 		trimmed := strings.TrimSpace(frame.Text)
 		if strings.HasSuffix(trimmed, ".") || strings.HasSuffix(trimmed, "!") || strings.HasSuffix(trimmed, "?") {
-			// Complete sentence found
+			sentenceText := currentSentenceText.String()
+
 			sentences = append(sentences, Sentence{
-				Text:       currentSentenceText.String(),
+				Text:       sentenceText,
 				StartTime:  currentStartTime,
 				Embedding:  nil, // Will be populated by embedding function
-				TokenCount: 0,   // Will be populated by tokenizer
+				TokenCount: CountTokens(sentenceText),
 			})
 
 			currentSentenceText.Reset()
@@ -116,49 +106,51 @@ func ExtractSentencesFromFrames(frames []Frame) []Sentence {
 
 	// Add any remaining text as a sentence
 	if currentSentenceText.Len() > 0 {
+		sentenceText := currentSentenceText.String()
 		sentences = append(sentences, Sentence{
-			Text:       currentSentenceText.String(),
+			Text:       sentenceText,
 			StartTime:  currentStartTime,
 			Embedding:  nil,
-			TokenCount: 0,
+			TokenCount: CountTokens(sentenceText),
 		})
 	}
 
 	return sentences
 }
 
-// CleanSRTText removes SRT formatting (timestamps, sequence numbers) but keeps text
-// Returns plain text suitable for processing
-func CleanSRTText(transcriptText string) string {
-	lines := strings.Split(transcriptText, "\n")
-	var cleanedLines []string
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-
-		// Skip empty lines
-		if line == "" {
-			continue
-		}
-
-		// Skip sequence numbers
-		if isDigitOnly(line) {
-			continue
-		}
-
-		// Skip timestamp lines
-		if strings.Contains(line, "-->") {
-			continue
-		}
-
-		// Keep text
-		cleanedLines = append(cleanedLines, line)
+// Replaces the averaged chunk embeddings with accurate embeddings
+// by running each chunk's text through the embedding model one last time
+func FinalizeChunkEmbeddings(chunks []Chunk, embeddingModel *EmbeddingModel) error {
+	if len(chunks) == 0 {
+		return nil
 	}
 
-	text := strings.Join(cleanedLines, " ")
-	// Clean up multiple spaces
-	re := regexp.MustCompile(`\s+`)
-	text = re.ReplaceAllString(text, " ")
+	// Extract chunk texts
+	chunkTexts := make([]string, len(chunks))
+	for i, chunk := range chunks {
+		chunkTexts[i] = chunk.Text
+	}
 
-	return strings.TrimSpace(text)
+	// embed with model
+	embeddings, err := embeddingModel.EmbedSentences(chunkTexts)
+	if err != nil {
+		return err
+	}
+
+	// update chunk embedding
+	for i, embedding := range embeddings {
+		chunks[i].Embedding = embedding
+	}
+
+	return nil
+}
+
+// checks if a string contains only digits
+func isDigitOnly(s string) bool {
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return len(s) > 0
 }
