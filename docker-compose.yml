@@ -106,29 +106,29 @@ services:
       - CASSANDRA_KEYSPACE=transcript_db
     restart: unless-stopped
 
-  # # Kafka message broker
-  # kafka:
-  #   platform: linux/amd64
-  #   build:
-  #     context: .
-  #     dockerfile: kafka/Dockerfile.kafka
-  #   container_name: kafka-broker
-  #   ports:
-  #     - "9092:9092"
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         memory: 512M
-  #   restart: unless-stopped
+  # Kafka message broker
+  kafka:
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: kafka/Dockerfile.kafka
+    container_name: kafka-broker
+    ports:
+      - "9092:9092"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    restart: unless-stopped
 
-  # kafka_init:
-  #   build:
-  #     context: .
-  #     dockerfile: kafka/Dockerfile.init
-  #   container_name: kafka-init
-  #   depends_on:
-  #     - kafka
-  #   environment:
-  #     - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-  #     - KAFKA_TOPIC=transcript-events
-  #   restart: on-failure:3
+  kafka_init:
+    build:
+      context: .
+      dockerfile: kafka/Dockerfile.init
+    container_name: kafka-init
+    depends_on:
+      - kafka
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_TOPIC=transcript-events
+    restart: on-failure:3
