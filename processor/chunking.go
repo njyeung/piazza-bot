@@ -172,21 +172,6 @@ func (cfg ChunkingConfig) ExtractChunksFromSentences(sentences []Sentence) []Chu
 	return chunks
 }
 
-// runs each chunk's text through the embedding model after chunking algorithm completes
-func (em *EmbeddingModel) FinalizeChunkEmbeddings(chunks []Chunk) error {
-	if len(chunks) == 0 {
-		return nil
-	}
-
-	// Convert to pointers for embedding
-	chunkPtrs := make([]*Chunk, len(chunks))
-	for i := range chunks {
-		chunkPtrs[i] = &chunks[i]
-	}
-
-	return em.EmbedChunks(chunkPtrs)
-}
-
 // SegmentReward computes the sum of similarities between adjacent sentences in a segment [i..j-1]
 func SegmentReward(i, j int, sim []float32) float32 {
 	if j-i <= 1 {

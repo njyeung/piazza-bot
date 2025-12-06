@@ -94,7 +94,7 @@ func InitEmbeddingModel(config EmbeddingConfig) (*EmbeddingModel, error) {
 	}, nil
 }
 
-// EmbedSentences embeds a slice of Sentence structs (updates Embedding field in place)
+// EmbedSentences embeds a slice of Sentence structs
 func (em *EmbeddingModel) EmbedSentences(sentences []*Sentence) error {
 	if len(sentences) == 0 {
 		return nil
@@ -289,15 +289,6 @@ func (em *EmbeddingModel) embedBatch(texts []string) ([][]float32, error) {
 		embeddings[i] = outputData[clsStart:clsEnd]
 	}
 	return embeddings, nil
-}
-
-func CountTokens(tok *tokenizer.Tokenizer, text string) int {
-	encoding, err := tok.EncodeSingle(text)
-	if err != nil {
-		return 0
-	}
-
-	return len(encoding.GetIds())
 }
 
 // Close releases resources
