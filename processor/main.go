@@ -4,21 +4,14 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 )
 
 func main() {
-	config := LoadConfig()
+	config := LoadCassandraConfig()
+	embeddingConfig := DefaultEmbeddingConfig()
 
-	// Load tokenizer
-	tokenizerPath := filepath.Join(".", "..", "embedding", "tokenizer.json")
-	err := InitTokenizer(tokenizerPath)
-	if err != nil {
-		log.Fatalf("Failed to load tokenizer: %v", err)
-	}
-
-	// Load embedding model
-	embeddingModel, err := InitEmbeddingModel()
+	// Load embedding model (includes tokenizer)
+	embeddingModel, err := InitEmbeddingModel(embeddingConfig)
 	if err != nil {
 		log.Fatalf("Failed to load embedding model: %v", err)
 	}
@@ -57,7 +50,7 @@ func main() {
 	}
 
 	// Extract sentences from frames
-	sentences := ExtractSentencesFromFrames(frames)
+	sentences := embeddingModel.ExtractSentencesFromFrames(frames)
 	fmt.Printf("Extracted %d sentences\n\n", len(sentences))
 
 	// Show first 5 sentences
@@ -74,19 +67,16 @@ func main() {
 
 	// Embed sentences
 	fmt.Println("Embedding sentences...")
-	sentenceTexts := make([]string, len(sentences))
-	for i, s := range sentences {
-		sentenceTexts[i] = s.Text
+
+	// Convert to pointers for embedding
+	sentencePtrs := make([]*Sentence, len(sentences))
+	for i := range sentences {
+		sentencePtrs[i] = &sentences[i]
 	}
 
-	embeddings, err := embeddingModel.EmbedSentences(sentenceTexts)
+	err = embeddingModel.EmbedSentences(sentencePtrs)
 	if err != nil {
 		log.Fatalf("Failed to embed sentences: %v", err)
-	}
-
-	// Assign embeddings back to sentences
-	for i, embedding := range embeddings {
-		sentences[i].Embedding = embedding
 	}
 
 	fmt.Printf("Successfully embedded %d sentences\n\n", len(sentences))
@@ -107,12 +97,12 @@ func main() {
 	// Perform semantic chunking with default config
 	fmt.Println("Performing semantic chunking...")
 	chunkingCfg := DefaultChunkingConfig()
-	chunks := chunkingCfg.ExtractChunksFromSentences(sentences, float32(config.SimilarityThreshold))
+	chunks := chunkingCfg.ExtractChunksFromSentences(sentences)
 	fmt.Printf("Created %d chunks from %d sentences\n\n", len(chunks), len(sentences))
 
 	// Finalize chunk embeddings with accurate model embeddings
 	fmt.Println("Finalizing chunk embeddings...")
-	err = FinalizeChunkEmbeddings(chunks, embeddingModel)
+	err = embeddingModel.FinalizeChunkEmbeddings(chunks)
 	if err != nil {
 		log.Fatalf("Failed to finalize chunk embeddings: %v", err)
 	}

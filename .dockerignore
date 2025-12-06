@@ -1,0 +1,23 @@
+# Python
+venv/
+__pycache__/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data files
+*.csv
+*.json
+*.txt
+*.srt
+
+# Ollama
+ollama/

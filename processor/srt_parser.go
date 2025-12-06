@@ -2,6 +2,8 @@ package main
 
 import (
 	"strings"
+
+	tokenizer "github.com/sugarme/tokenizer"
 )
 
 // ParseSRT parses SRT transcript text and returns array of Frames.
@@ -60,9 +62,9 @@ func ParseSRT(transcriptText string) []Frame {
 	return frames
 }
 
-// Merges frames into sentences based on sentence boundaries
+// ExtractSentencesFromFrames merges frames into sentences based on sentence boundaries
 // A sentence is text ending with . or ? or !
-func ExtractSentencesFromFrames(frames []Frame) []Sentence {
+func (em *EmbeddingModel) ExtractSentencesFromFrames(frames []Frame) []Sentence {
 	if len(frames) == 0 {
 		return []Sentence{}
 	}
@@ -96,7 +98,7 @@ func ExtractSentencesFromFrames(frames []Frame) []Sentence {
 				Text:       sentenceText,
 				StartTime:  currentStartTime,
 				Embedding:  nil, // Will be populated by embedding function
-				TokenCount: CountTokens(sentenceText),
+				TokenCount: CountTokens(em.Tokenizer, sentenceText),
 			})
 
 			currentSentenceText.Reset()
@@ -111,38 +113,20 @@ func ExtractSentencesFromFrames(frames []Frame) []Sentence {
 			Text:       sentenceText,
 			StartTime:  currentStartTime,
 			Embedding:  nil,
-			TokenCount: CountTokens(sentenceText),
+			TokenCount: CountTokens(em.Tokenizer, sentenceText),
 		})
 	}
 
 	return sentences
 }
 
-// Replaces the averaged chunk embeddings with accurate embeddings
-// by running each chunk's text through the embedding model one last time
-func FinalizeChunkEmbeddings(chunks []Chunk, embeddingModel *EmbeddingModel) error {
-	if len(chunks) == 0 {
-		return nil
-	}
-
-	// Extract chunk texts
-	chunkTexts := make([]string, len(chunks))
-	for i, chunk := range chunks {
-		chunkTexts[i] = chunk.Text
-	}
-
-	// embed with model
-	embeddings, err := embeddingModel.EmbedSentences(chunkTexts)
+func CountTokens(tok *tokenizer.Tokenizer, text string) int {
+	encoding, err := tok.EncodeSingle(text)
 	if err != nil {
-		return err
+		return 0
 	}
 
-	// update chunk embedding
-	for i, embedding := range embeddings {
-		chunks[i].Embedding = embedding
-	}
-
-	return nil
+	return len(encoding.GetIds())
 }
 
 // checks if a string contains only digits

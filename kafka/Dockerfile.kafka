@@ -1,7 +1,7 @@
 FROM ubuntu:22.04
 
 # apt
-RUN apt-get update; apt-get install -y wget curl openjdk-11-jdk python3-pip net-tools lsof nano
+RUN apt-get update; apt-get install -y wget curl openjdk-11-jdk python3-pip net-tools lsof nano netcat
 ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
 
 # Kafka (see https://kafka.apache.org/quickstart, KRaft config)
@@ -10,5 +10,8 @@ RUN wget https://archive.apache.org/dist/kafka/3.6.2/kafka_2.12-3.6.2.tgz && tar
 # from bin/kafka-storage.sh random-uuid
 ENV KAFKA_CLUSTER_ID=dCHffFWYTCKWXiesmJMN9w
 
-CMD sh -c "cd /kafka_2.12-3.6.2 && bin/kafka-storage.sh format -t $KAFKA_CLUSTER_ID -c config/kraft/server.properties && bin/kafka-server-start.sh config/kraft/server.properties"
-
+CMD sh -c "cd /kafka_2.12-3.6.2 && \
+    bin/kafka-storage.sh format -t $KAFKA_CLUSTER_ID -c config/kraft/server.properties && \
+    bin/kafka-server-start.sh config/kraft/server.properties \
+        --override advertised.listeners=${KAFKA_ADVERTISED_LISTENERS:-PLAINTEXT://localhost:9092} \
+        --override auto.create.topics.enable=false"

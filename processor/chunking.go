@@ -2,53 +2,12 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"strings"
-
-	tokenizer "github.com/sugarme/tokenizer"
-	"github.com/sugarme/tokenizer/pretrained"
 )
 
-var tokenizerInstance *tokenizer.Tokenizer
-
-// ChunkingConfig holds all tunable parameters for the semantic chunking algorithm
-type ChunkingConfig struct {
-	OptimalSize  int     // Tokens: no penalty below this (default: 470)
-	MaxSize      int     // Tokens: hard limit, infinite penalty at or above (default: 512)
-	LambdaSize   float32 // Max penalty in "edge units" at MaxSize (default: 2.0)
-	ChunkPenalty float32 // Initial penalty per chunk to discourage small chunks (default: 2.0)
-}
-
-// DefaultChunkingConfig returns sensible defaults
-func DefaultChunkingConfig() ChunkingConfig {
-	return ChunkingConfig{
-		OptimalSize:  450,
-		MaxSize:      512,
-		LambdaSize:   0.0,
-		ChunkPenalty: 2.0,
-	}
-}
-
-func InitTokenizer(tokenizerPath string) error {
-	var err error
-	tokenizerInstance, err = pretrained.FromFile(tokenizerPath)
-	if err != nil {
-		return fmt.Errorf("failed to load tokenizer: %w", err)
-	}
-	return nil
-}
-
-func CountTokens(text string) int {
-	encoding, err := tokenizerInstance.EncodeSingle(text)
-	if err != nil {
-		return 0
-	}
-
-	return len(encoding.GetIds())
-}
-
-// ComputePenalty penalizes chunks that exceed optimal size
+// Calculates hinge loss based on tokens window.
+// 0 at OptimalSize, linearly increasing to lambda at MaxSize, then infinity
 func (cfg ChunkingConfig) ComputePenalty(i int, j int, prefixTokens []int) float32 {
 	tokenCount := prefixTokens[j] - prefixTokens[i]
 
@@ -60,13 +19,12 @@ func (cfg ChunkingConfig) ComputePenalty(i int, j int, prefixTokens []int) float
 		return float32(math.MaxFloat32)
 	}
 
-	// Linear penalty from 0 to LambdaSize
 	normalized := float32(tokenCount-cfg.OptimalSize) / float32(cfg.MaxSize-cfg.OptimalSize)
 	return cfg.LambdaSize * normalized
 }
 
 // Partition sentences into chunks. Maximizes semantic coherence while penalizing oversized chunks
-func (cfg ChunkingConfig) ExtractChunksFromSentences(sentences []Sentence, threshold float32) []Chunk {
+func (cfg ChunkingConfig) ExtractChunksFromSentences(sentences []Sentence) []Chunk {
 	//
 	// DP Definition:
 	// dp[j] = best score for optimally chunking sentences 0..j-1
@@ -82,8 +40,6 @@ func (cfg ChunkingConfig) ExtractChunksFromSentences(sentences []Sentence, thres
 	// start[j] = optimal starting index i for the last chunk ending at j
 	// Backtrack: pos = start[pos] until pos=0
 	//
-
-	const size_penalty = 2
 
 	if len(sentences) == 0 {
 		return []Chunk{}
@@ -214,6 +170,21 @@ func (cfg ChunkingConfig) ExtractChunksFromSentences(sentences []Sentence, thres
 	}
 
 	return chunks
+}
+
+// runs each chunk's text through the embedding model after chunking algorithm completes
+func (em *EmbeddingModel) FinalizeChunkEmbeddings(chunks []Chunk) error {
+	if len(chunks) == 0 {
+		return nil
+	}
+
+	// Convert to pointers for embedding
+	chunkPtrs := make([]*Chunk, len(chunks))
+	for i := range chunks {
+		chunkPtrs[i] = &chunks[i]
+	}
+
+	return em.EmbedChunks(chunkPtrs)
 }
 
 // SegmentReward computes the sum of similarities between adjacent sentences in a segment [i..j-1]

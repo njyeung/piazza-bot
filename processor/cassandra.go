@@ -8,7 +8,7 @@ import (
 )
 
 // ConnectCassandra establishes a connection to Cassandra
-func ConnectCassandra(config *Config) (*gocql.Session, error) {
+func ConnectCassandra(config *CassandraConfig) (*gocql.Session, error) {
 	cluster := gocql.NewCluster(config.CassandraHosts...)
 	cluster.Keyspace = config.CassandraKeyspace
 	cluster.Consistency = gocql.Quorum

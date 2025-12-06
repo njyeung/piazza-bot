@@ -5,6 +5,7 @@ go 1.25.4
 require (
 	github.com/gocql/gocql v1.7.0
 	github.com/sugarme/tokenizer v0.3.0
+	github.com/yalue/onnxruntime_go v1.24.0
 )
 
 require (
