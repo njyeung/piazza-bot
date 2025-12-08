@@ -10,6 +10,8 @@ import json
 import tempfile
 import glob
 from cassandra.cluster import Cluster
+from kafka import KafkaProducer
+from kafka.errors import KafkaError
 
 # Configuration from environment variables
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
@@ -18,6 +20,9 @@ REDIS_QUEUE = os.getenv('REDIS_QUEUE', 'frontier')
 
 CASSANDRA_HOSTS = os.getenv('CASSANDRA_HOSTS', 'localhost').split(',')
 CASSANDRA_KEYSPACE = os.getenv('CASSANDRA_KEYSPACE', 'transcript_db')
+
+KAFKA_BOOTSTRAP_SERVERS = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'kafka:9092')
+KAFKA_TOPIC = os.getenv('KAFKA_TOPIC', 'transcript-events')
 
 def fetch_transcript(url):
     """Fetch and download transcript for a given Kaltura Gallery URL"""
@@ -123,6 +128,14 @@ def main():
     print(f"Connecting to Redis at {REDIS_HOST}:{REDIS_PORT}")
     r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 
+    print(f"Connecting to Kafka at {KAFKA_BOOTSTRAP_SERVERS}")
+    producer = KafkaProducer(
+        bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
+        value_serializer=lambda v: json.dumps(v).encode('utf-8'),
+        retries=5,
+        max_in_flight_requests_per_connection=1
+    )
+
     print(f"Waiting for lectures on queue: {REDIS_QUEUE}")
 
     while True:
@@ -134,7 +147,7 @@ def main():
                 _, json_str = result
 
                 lecture = json.loads(json_str)
-                
+
                 url = lecture.get('url')
                 transcript = fetch_transcript(url)
 
@@ -143,6 +156,7 @@ def main():
                 else:
                     status = "missing"
 
+                # Insert into Cassandra
                 session.execute(
                     insert_transcript_stmt,
                     (
@@ -157,12 +171,32 @@ def main():
                     ),
                 )
 
+                # Send event to Kafka (only for successful transcripts)
+                if status == "success":
+                    event = {
+                        "class_name": lecture.get("class_name"),
+                        "professor": lecture.get("professor"),
+                        "semester": lecture.get("semester"),
+                        "url": url,
+                        "lecture_number": lecture.get("lecture_number"),
+                        "lecture_title": lecture.get("lecture_title")
+                    }
+
+                    try:
+                        future = producer.send(KAFKA_TOPIC, value=event)
+                        future.get(timeout=10)  # Wait for confirmation
+                        print(f"Sent transcript event to Kafka: {url}")
+                    except KafkaError as e:
+                        print(f"Failed to send Kafka message: {e}")
+
         except redis.ConnectionError as e:
             # Wait before retrying
             print(f"Redis connection error: {e}")
             time.sleep(5)
         except KeyboardInterrupt:
             print("Shutting down...")
+            producer.flush()
+            producer.close()
             cluster.shutdown()
             break
         except json.JSONDecodeError as e:

@@ -1,91 +1,174 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
+
+	gocql "github.com/apache/cassandra-gocql-driver/v2"
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
 
+// TranscriptEvent represents the Kafka message structure
+type TranscriptEvent struct {
+	ClassName     string `json:"class_name"`
+	Professor     string `json:"professor"`
+	Semester      string `json:"semester"`
+	URL           string `json:"url"`
+	LectureNumber int    `json:"lecture_number"`
+	LectureTitle  string `json:"lecture_title"`
+}
+
 func main() {
-	config := LoadCassandraConfig()
+	// Load configurations
+	kafkaConfig := LoadKafkaConfig()
+	cassandraConfig := LoadCassandraConfig()
 	embeddingConfig := DefaultEmbeddingConfig()
 
-	// Load embedding model (includes tokenizer)
+	// Create Kafka consumer
+	fmt.Printf("Connecting to Kafka at %s\n", kafkaConfig.BootstrapServers)
+	consumer, err := kafka.NewConsumer(&kafka.ConfigMap{
+		"bootstrap.servers": kafkaConfig.BootstrapServers,
+		"group.id":          kafkaConfig.GroupID,
+		"auto.offset.reset": "earliest",
+	})
+	if err != nil {
+		log.Fatalf("Failed to create Kafka consumer: %v", err)
+	}
+	defer consumer.Close()
+
+	// Subscribe to topic
+	fmt.Printf("Subscribing to topic: %s\n", kafkaConfig.Topic)
+	err = consumer.SubscribeTopics([]string{kafkaConfig.Topic}, nil)
+	if err != nil {
+		log.Fatalf("Failed to subscribe to topic: %v", err)
+	}
+
+	// Connect to Cassandra
+	fmt.Printf("Connecting to Cassandra at %v\n", cassandraConfig.CassandraHosts)
+	session, err := ConnectCassandra(cassandraConfig)
+	if err != nil {
+		log.Fatalf("Failed to connect to Cassandra: %v", err)
+	}
+	defer session.Close()
+
+	// Load embedding model
+	fmt.Println("Loading embedding model")
 	embeddingModel, err := InitEmbeddingModel(embeddingConfig)
 	if err != nil {
 		log.Fatalf("Failed to load embedding model: %v", err)
 	}
 	defer embeddingModel.Close()
 
-	// Connect to Cassandra
-	session, err := ConnectCassandra(config)
-	if err != nil {
-		log.Fatalf("Failed to connect to Cassandra: %v", err)
-	}
-	defer session.Close()
+	// signal handling
+	sigchan := make(chan os.Signal, 1)
+	signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM)
 
-	// Fetch first available transcript
-	transcript, err := FetchFirstTranscript(session)
-	if err != nil {
-		log.Fatalf("Failed to fetch transcript: %v", err)
+	// Poll for messages
+	run := true
+	for run {
+		select {
+		case sig := <-sigchan:
+			fmt.Printf("\nCaught signal %v: terminating\n", sig)
+			run = false
+		default:
+			ev := consumer.Poll(500)
+			if ev == nil {
+				continue
+			}
+
+			switch e := ev.(type) {
+			case *kafka.Message:
+				fmt.Printf("\n=== Received transcript event ===\n")
+
+				// Parse the event
+				var event TranscriptEvent
+				if err := json.Unmarshal(e.Value, &event); err != nil {
+					fmt.Printf("Error parsing message: %v\n", err)
+					continue
+				}
+
+				fmt.Printf("Processing: %s - %s - Lecture %d\n",
+					event.ClassName, event.LectureTitle, event.LectureNumber)
+
+				if err := process(session, embeddingModel, &event); err != nil {
+					fmt.Printf("Error processing transcript: %v\n", err)
+					continue
+				}
+
+				fmt.Println("Successfully processed transcript")
+
+			case kafka.Error:
+				fmt.Fprintf(os.Stderr, "Error: %v\n", e)
+				if e.Code() == kafka.ErrAllBrokersDown {
+					run = false
+				}
+			}
+		}
 	}
+}
+
+// fetches a transcript from Cassandra and processes it
+func process(session *gocql.Session, embeddingModel *EmbeddingModel, event *TranscriptEvent) error {
+	// Fetch transcript from Cassandra
+	transcript, err := FetchTranscriptByKey(session, event.ClassName, event.Professor, event.Semester, event.URL)
+	if err != nil {
+		return fmt.Errorf("failed to fetch transcript: %w", err)
+	}
+	fmt.Printf("\tRetrieved transcript (%d characters)\n", len(transcript.TranscriptText))
 
 	// Parse SRT into frames
 	frames := ParseSRT(transcript.TranscriptText)
+	fmt.Printf("\tParsed %d frames from SRT\n", len(frames))
 
 	// Extract sentences from frames
 	sentences := embeddingModel.ExtractSentencesFromFrames(frames)
+	fmt.Printf("\tExtracted %d sentences\n", len(sentences))
 
-	// Embed sentences (need pointers since it modifies the struct)
-	sentencePtrs := make([]*Sentence, len(sentences))
-	for i := range sentences {
-		sentencePtrs[i] = &sentences[i]
+	// Embed sentences
+	if err := embeddingModel.EmbedSentences(sentences); err != nil {
+		return fmt.Errorf("failed to embed sentences: %w", err)
 	}
-	err = embeddingModel.EmbedSentences(sentencePtrs)
-	if err != nil {
-		log.Fatalf("Failed to embed sentences: %v", err)
-	}
+	fmt.Printf("\tEmbedded %d sentences\n", len(sentences))
 
-	// Perform semantic chunking with default config
+	// Perform semantic chunking
 	chunkingCfg := DefaultChunkingConfig()
-	chunks := chunkingCfg.ExtractChunksFromSentences(sentences)
-
-	// Finally, embed chunks
-	chunkPtrs := make([]*Chunk, len(chunks))
-	for i := range chunks {
-		chunkPtrs[i] = &chunks[i]
-	}
-	err = embeddingModel.EmbedChunks(chunkPtrs)
+	chunks, err := chunkingCfg.ExtractChunksFromSentences(sentences)
 	if err != nil {
-		log.Fatalf("Failed to finalize chunk embeddings: %v", err)
+		return fmt.Errorf("failed to extract chunks: %w", err)
 	}
+	fmt.Printf("\tCreated %d chunks\n", len(chunks))
 
-	// Write chunks to file
-	fmt.Println("Writing chunks to disk...")
-	err = WriteChunksToFile(chunks, "chunks_output.txt")
-	if err != nil {
-		log.Fatalf("Failed to write chunks to file: %v", err)
+	// Embed chunks
+	if err := embeddingModel.EmbedChunks(chunks); err != nil {
+		return fmt.Errorf("failed to embed chunks: %w", err)
 	}
-	fmt.Println("Chunks written to chunks_output.txt")
-}
+	fmt.Printf("\tEmbedded %d chunks\n", len(chunks))
 
-// WriteChunksToFile writes all chunks to a file with detailed information
-func WriteChunksToFile(chunks []Chunk, filename string) error {
-	file, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
+	// Store chunks in Cassandra embeddings table
+	fmt.Printf("\tInserting %d chunks into Cassandra...\n", len(chunks))
 	for i, chunk := range chunks {
-		fmt.Fprintf(file, "===== CHUNK %d =====\n", i)
-		fmt.Fprintf(file, "Start Time: %s\n", chunk.StartTime)
-		fmt.Fprintf(file, "Sentences: %d\n", chunk.NumSentences)
-		fmt.Fprintf(file, "Token Count: %d\n", chunk.TokenCount)
-		fmt.Fprintf(file, "\n--- TEXT ---\n")
-		fmt.Fprintf(file, "%s\n", chunk.Text)
-		fmt.Fprintf(file, "\n\n")
+		row := &EmbeddingsRow{
+			ClassName:        event.ClassName,  // partition key
+			Professor:        event.Professor,  // partition key
+			Semester:         event.Semester,   // partition key
+			URL:              event.URL,        // cluster key
+			ChunkIndex:       chunk.ChunkIndex, // cluster key
+			ChunkText:        chunk.Text,
+			Embedding:        chunk.Embedding, // embedding search
+			TokenCount:       chunk.TokenCount,
+			LectureTitle:     event.LectureTitle,
+			LectureTimestamp: chunk.StartTime,
+		}
+
+		if err := InsertEmbedding(session, row); err != nil {
+			return fmt.Errorf("failed to insert chunk %d: %w", i, err)
+		}
 	}
+	fmt.Printf("\tInserted %d chunks to database\n", len(chunks))
 
 	return nil
 }

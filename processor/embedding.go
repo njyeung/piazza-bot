@@ -180,7 +180,7 @@ func (em *EmbeddingModel) embedBatches(texts []string, tokenLengths []int) ([][]
 		// Process batch
 		embeddings, err := em.embedBatch(batchTexts)
 		if err != nil {
-			return nil, fmt.Errorf("batch %d failed: %w", err)
+			return nil, fmt.Errorf("batch failed: %w", err)
 		}
 
 		allEmbeddings = append(allEmbeddings, embeddings...)
@@ -282,11 +282,14 @@ func (em *EmbeddingModel) embedBatch(texts []string) ([][]float32, error) {
 	outputData := outputTensor.GetData()
 
 	// Extract [CLS] token embedding (first token of each sequence)
+	// IMPORTANT: Copy the data before the output tensor is destroyed
 	embeddings := make([][]float32, batchSizeOut)
 	for i := int64(0); i < batchSizeOut; i++ {
 		clsStart := i * seqLen * hiddenDim
 		clsEnd := clsStart + hiddenDim
-		embeddings[i] = outputData[clsStart:clsEnd]
+		// Make a copy so we don't reference the tensor's memory after it's destroyed
+		embeddings[i] = make([]float32, hiddenDim)
+		copy(embeddings[i], outputData[clsStart:clsEnd])
 	}
 	return embeddings, nil
 }

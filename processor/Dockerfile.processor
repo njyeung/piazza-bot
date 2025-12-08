@@ -49,7 +49,7 @@ RUN go mod download
 COPY processor/*.go processor/model.onnx processor/tokenizer.json  processor/vocab.txt ./
 
 # Build the processor binary
-# RUN go build -o processor .
+RUN go build -o processor .
 
 # Keep container running for manual testing
-CMD ["tail", "-f", "/dev/null"]
+CMD ["go", "run", "."]

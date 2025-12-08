@@ -102,18 +102,24 @@ def create_embeddings_table(session):
     print("Table 'embeddings' created successfully")
 
     # Create ANN index for vector search
-    create_index_query = """
-    CREATE INDEX IF NOT EXISTS embeddings_ann_idx
+    embedding_index_query = """
+    CREATE INDEX IF NOT EXISTS embedding_idx
     ON embeddings(embedding)
     USING 'SAI'
     """
+    session.execute(embedding_index_query)
+    print("Embedding index index 'embedding_idx' created successfully")
 
-    try:
-        session.execute(create_index_query)
-        print("ANN index 'embeddings_ann_idx' created successfully")
-    except Exception as e:
-        print(f"Note: ANN index creation may require Cassandra 5.0+: {e}")
+    # Create SAI text index for keyword search
+    text_index_query = """
+    CREATE INDEX IF NOT EXISTS text_idx
+    ON embeddings(chunk_text)
+    USING 'SAI'
+    """
 
+    session.execute(text_index_query)
+    print("Text index 'text_idx' created successfully")
+    
 def main():
     """Main initialization function"""
 

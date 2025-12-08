@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gocql/gocql"
+	gocql "github.com/apache/cassandra-gocql-driver/v2"
 )
 
 // ConnectCassandra establishes a connection to Cassandra
@@ -46,6 +46,31 @@ func FetchTranscript(session *gocql.Session, className, professor, semester stri
 	}
 
 	return nil, fmt.Errorf("no transcript found")
+}
+
+// FetchTranscriptByKey retrieves a specific transcript by its full primary key
+func FetchTranscriptByKey(session *gocql.Session, className, professor, semester, url string) (*Transcript, error) {
+	query := `
+		SELECT class_name, professor, semester, url, lecture_number, lecture_title, transcript_text
+		FROM transcripts
+		WHERE class_name = ? AND professor = ? AND semester = ? AND url = ?
+	`
+
+	var transcript Transcript
+	err := session.Query(query, className, professor, semester, url).Scan(
+		&transcript.ClassName, &transcript.Professor, &transcript.Semester,
+		&transcript.URL, &transcript.LectureNumber, &transcript.LectureTitle, &transcript.TranscriptText,
+	)
+
+	if err == gocql.ErrNotFound {
+		return nil, fmt.Errorf("transcript not found for url: %s", url)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("error fetching transcript: %w", err)
+	}
+
+	return &transcript, nil
 }
 
 // FetchFirstTranscript retrieves the first available transcript with non-null transcript_text

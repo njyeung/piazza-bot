@@ -1,9 +1,21 @@
 package main
 
+import (
+	"os"
+	"strings"
+)
+
 // Config holds configuration for the processor
 type CassandraConfig struct {
 	CassandraHosts    []string
 	CassandraKeyspace string
+}
+
+// KafkaConfig holds Kafka consumer configuration
+type KafkaConfig struct {
+	BootstrapServers string
+	Topic            string
+	GroupID          string
 }
 
 // ChunkingConfig holds all tunable parameters for the semantic chunking algorithm
@@ -21,9 +33,41 @@ type EmbeddingConfig struct {
 
 // cassandra config
 func LoadCassandraConfig() *CassandraConfig {
+	cassandraHostsStr := os.Getenv("CASSANDRA_HOSTS")
+	var cassandraHosts []string
+	if cassandraHostsStr == "" {
+		cassandraHosts = []string{"db-1", "db-2", "db-3"}
+	} else {
+		cassandraHosts = strings.Split(cassandraHostsStr, ",")
+	}
+
+	cassandraKeyspace := os.Getenv("CASSANDRA_KEYSPACE")
+	if cassandraKeyspace == "" {
+		cassandraKeyspace = "transcript_db"
+	}
+
 	return &CassandraConfig{
-		CassandraHosts:    []string{"host.docker.internal"},
-		CassandraKeyspace: "transcript_db",
+		CassandraHosts:    cassandraHosts,
+		CassandraKeyspace: cassandraKeyspace,
+	}
+}
+
+// LoadKafkaConfig loads Kafka configuration from environment variables
+func LoadKafkaConfig() *KafkaConfig {
+	bootstrapServers := os.Getenv("KAFKA_BOOTSTRAP_SERVERS")
+	if bootstrapServers == "" {
+		bootstrapServers = "kafka:9092"
+	}
+
+	topic := os.Getenv("KAFKA_TOPIC")
+	if topic == "" {
+		topic = "transcript-events"
+	}
+
+	return &KafkaConfig{
+		BootstrapServers: bootstrapServers,
+		Topic:            topic,
+		GroupID:          "processor-group",
 	}
 }
 
@@ -34,7 +78,7 @@ func DefaultEmbeddingConfig() EmbeddingConfig {
 		// 240 short sentences (50 tokens each) in one batch
 		// 24 medium chunks (500 tokens each) in one batch
 		// 12 large chunks (1000 tokens each) in one batch
-		MaxBatchTokens: 12000,
+		MaxBatchTokens: 6000,
 	}
 }
 
@@ -43,7 +87,7 @@ func DefaultChunkingConfig() ChunkingConfig {
 	return ChunkingConfig{
 		OptimalSize:  470,
 		MaxSize:      512,
-		LambdaSize:   3.0,
+		LambdaSize:   5.0,
 		ChunkPenalty: 1.0,
 	}
 }

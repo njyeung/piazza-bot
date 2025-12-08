@@ -42,7 +42,7 @@ def create_topic():
 
     topic = NewTopic(
         name=KAFKA_TOPIC,
-        num_partitions=3,
+        num_partitions=2,  # Match number of GPU processors
         replication_factor=1,
         topic_configs={
             'retention.ms': '604800000',

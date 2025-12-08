@@ -76,12 +76,16 @@ services:
         condition: service_started
       db_init:
         condition: service_completed_successfully
+      kafka_init:
+        condition: service_completed_successfully
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_QUEUE=frontier
       - CASSANDRA_HOSTS=db-1,db-2,db-3
       - CASSANDRA_KEYSPACE=transcript_db
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_TOPIC=transcript-events
     restart: unless-stopped
     deploy:
       replicas: 3
@@ -133,4 +137,30 @@ services:
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - KAFKA_TOPIC=transcript-events
+
+  # Transcript processor with GPU support
+  processor:
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: processor/Dockerfile.processor
+    container_name: processor
+    depends_on:
+      db_init:
+        condition: service_completed_successfully
+      kafka_init:
+        condition: service_completed_successfully
+    environment:
+      - CASSANDRA_HOSTS=db-1,db-2,db-3
+      - CASSANDRA_KEYSPACE=transcript_db
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_TOPIC=transcript-events
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
 
