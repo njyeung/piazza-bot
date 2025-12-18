@@ -157,6 +157,26 @@ def create_piazza_answers_table(session):
     session.execute(create_table_query)
     print("Table 'piazza_answers' created successfully")
 
+def create_piazza_config_table(session):
+    """Create piazza_config table for mapping network IDs to courses"""
+    print(f"\nCreating table: {CASSANDRA_KEYSPACE}.piazza_config")
+
+    session.set_keyspace(CASSANDRA_KEYSPACE)
+
+    create_table_query = """
+    CREATE TABLE IF NOT EXISTS piazza_config (
+        network_id text PRIMARY KEY,
+        class_name text,
+        professor text,
+        semester text,
+        email text,
+        password text
+    )
+    """
+
+    session.execute(create_table_query)
+    print("Table 'piazza_config' created successfully")
+
 def main():
     """Main initialization function"""
 
@@ -173,6 +193,7 @@ def main():
         create_embeddings_table(session)
         create_inverted_index_table(session)
         create_piazza_answers_table(session)
+        create_piazza_config_table(session)
 
         print("\nDatabase initialization completed successfully")
 

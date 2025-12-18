@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/gocql/gocql"
 )
 
 // WriteParsersToDisk writes parser code to the parsers directory
@@ -29,8 +31,8 @@ func WriteParsersToDisk(parsers []Parser, parsersDir string) error {
 	return nil
 }
 
-// CleanupDeletedParsers removes parser files that are no longer in Cassandra
-func CleanupDeletedParsers(parsers []Parser, parsersDir string) error {
+// CleanupDeletedParsers removes parser files and their Piazza configs that are no longer in Cassandra
+func CleanupDeletedParsers(parsers []Parser, parsersDir string, session *gocql.Session) error {
 	// Build a set of valid parser names from Cassandra
 	validParsers := make(map[string]bool)
 	for _, parser := range parsers {
@@ -61,9 +63,25 @@ func CleanupDeletedParsers(parsers []Parser, parsersDir string) error {
 		// Extract parser name (remove .py extension)
 		parserName := strings.TrimSuffix(filename, ".py")
 
-		// If this parser is not in Cassandra, delete it
+		// If this parser is not in Cassandra, delete it and its Piazza config
 		if !validParsers[parserName] {
 			filePath := filepath.Join(parsersDir, filename)
+
+			// First, try to extract Piazza config to get network_id before deleting
+			codeBytes, err := os.ReadFile(filePath)
+			if err == nil {
+				config, err := ExtractPiazzaConfig(string(codeBytes))
+				if err == nil {
+					// Delete the Piazza config from Cassandra
+					if err := DeletePiazzaConfig(session, config.NetworkID); err != nil {
+						log.Printf("  Error deleting Piazza config for %s: %v", filename, err)
+					} else {
+						log.Printf("  Deleted Piazza config (network: %s)", config.NetworkID)
+					}
+				}
+			}
+
+			// Delete the parser file
 			if err := os.Remove(filePath); err != nil {
 				log.Printf("Error deleting parser %s: %v", filename, err)
 			} else {

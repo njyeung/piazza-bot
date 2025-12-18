@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Piazza AI Assistant",
+  "version": "1.0",
+  "description": "Shows AI-generated answers under Piazza posts",
+  "permissions": [
+    "activeTab"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://piazza.com/class/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

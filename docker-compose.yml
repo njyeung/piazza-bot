@@ -182,7 +182,7 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
-    restart: unless-stopped
+    restart: no
     volumes:
       - ollama-data:/root/.ollama
 

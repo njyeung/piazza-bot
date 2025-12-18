@@ -1,4 +1,10 @@
-#!/usr/bin/env python3
+# CLASS_NAME: CS544
+# PROFESSOR: Tyler
+# SEMESTER: FALL25
+# PIAZZA_NETWORK_ID: merk8zm4in1ib
+# PIAZZA_EMAIL: Your piazza email
+# PIAZZA_PASSWORD: Your piazza password
+
 """
 CS544 Fall 2025 parser for Tyler Caraza-Harter's course schedule.
 

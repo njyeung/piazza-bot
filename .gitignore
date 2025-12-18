@@ -2,3 +2,4 @@
 */volume/*
 *__pycache__*
 *.onnx
+*cs544.py

@@ -74,7 +74,7 @@ func LoadKafkaConfig() *KafkaConfig {
 // DefaultEmbeddingConfig returns sensible defaults for embedding
 func DefaultEmbeddingConfig() EmbeddingConfig {
 	return EmbeddingConfig{
-		MaxBatchTokens: 4000,
+		MaxBatchTokens: 6000,
 	}
 }
 

@@ -65,11 +65,11 @@ func updateParsers(session *gocql.Session, parsersDir string) {
 	log.Printf("Found %d parser(s) in Cassandra", len(parsers))
 
 	// Clean up parsers that were deleted from Cassandra
-	if err := CleanupDeletedParsers(parsers, parsersDir); err != nil {
+	if err := CleanupDeletedParsers(parsers, parsersDir, session); err != nil {
 		log.Printf("Error cleaning up deleted parsers: %v", err)
 	}
 
-	// Write current parsers to disk
+	// Write current parsers to disk and upsert Piazza configs
 	if len(parsers) > 0 {
 		if err := WriteParsersToDisk(parsers, parsersDir); err != nil {
 			log.Printf("Error writing parsers to disk: %v", err)
@@ -79,10 +79,21 @@ func updateParsers(session *gocql.Session, parsersDir string) {
 		log.Println("Parsers written to disk:")
 		for _, p := range parsers {
 			log.Printf("  - %s", p.ParserName)
+
+			// Try to extract and upsert Piazza config
+			config, err := ExtractPiazzaConfig(p.CodeText)
+			if err != nil {
+				// Not an error - parser might not have Piazza config
+				log.Printf("No Piazza config found (skipping)")
+			} else {
+				if err := UpsertPiazzaConfig(session, config); err != nil {
+					log.Printf("Error upserting Piazza config: %v", err)
+				} else {
+					log.Printf("Piazza config upserted (network: %s)", config.NetworkID)
+				}
+			}
 		}
 	}
-
-	log.Println()
 }
 
 func runParsers(parsersDir string, redisClient *RedisClient) {
