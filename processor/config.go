@@ -74,11 +74,7 @@ func LoadKafkaConfig() *KafkaConfig {
 // DefaultEmbeddingConfig returns sensible defaults for embedding
 func DefaultEmbeddingConfig() EmbeddingConfig {
 	return EmbeddingConfig{
-		// 12000 tokens is about:
-		// 240 short sentences (50 tokens each) in one batch
-		// 24 medium chunks (500 tokens each) in one batch
-		// 12 large chunks (1000 tokens each) in one batch
-		MaxBatchTokens: 6000,
+		MaxBatchTokens: 4000,
 	}
 }
 
@@ -87,7 +83,7 @@ func DefaultChunkingConfig() ChunkingConfig {
 	return ChunkingConfig{
 		OptimalSize:  470,
 		MaxSize:      512,
-		LambdaSize:   5.0,
+		LambdaSize:   2.0,
 		ChunkPenalty: 1.0,
 	}
 }

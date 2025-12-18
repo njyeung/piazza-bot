@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	gocql "github.com/apache/cassandra-gocql-driver/v2"
@@ -114,4 +115,60 @@ func InsertEmbedding(session *gocql.Session, row *EmbeddingsRow) error {
 		row.ClassName, row.Professor, row.Semester, row.URL, row.ChunkIndex,
 		row.ChunkText, row.Embedding, row.TokenCount, row.LectureTitle, row.LectureTimestamp, time.Now(),
 	).Exec()
+}
+
+// InsertInvertedIndexTerm inserts a term into the inverted index
+func InsertInvertedIndexTerm(session *gocql.Session, term string, row *EmbeddingsRow) error {
+	query := `
+		INSERT INTO keywords (
+			term, class_name, professor, semester, url, chunk_index
+		) VALUES (?, ?, ?, ?, ?, ?)
+	`
+
+	return session.Query(query,
+		term, row.ClassName, row.Professor, row.Semester, row.URL, row.ChunkIndex,
+	).Exec()
+}
+
+// TokenizeText is a helper function that extracts terms from text for inverted index
+func WordsFromText(text string) []string {
+
+	text = strings.ToLower(text)
+
+	replacer := strings.NewReplacer(
+		",", " ",
+		".", " ",
+		"!", " ",
+		"?", " ",
+		";", " ",
+		":", " ",
+		"(", " ",
+		")", " ",
+		"[", " ",
+		"]", " ",
+		"{", " ",
+		"}", " ",
+		"\"", " ",
+		"'", " ",
+		"\n", " ",
+		"\t", " ",
+	)
+	text = replacer.Replace(text)
+	words := strings.Fields(text)
+
+	// filter out short and common words, deduplicate
+	termSet := make(map[string]bool)
+	for _, word := range words {
+		if len(word) > 2 {
+			termSet[word] = true
+		}
+	}
+
+	// Convert back to slice
+	terms := make([]string, 0, len(termSet))
+	for term := range termSet {
+		terms = append(terms, term)
+	}
+
+	return terms
 }

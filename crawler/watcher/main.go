@@ -10,21 +10,10 @@ import (
 )
 
 func main() {
-	log.Println("=== Watcher Starting ===")
-
 	// Load configuration
 	config := LoadConfig()
-	log.Printf("Configuration:")
-	log.Printf("  Cassandra hosts: %v", config.CassandraHosts)
-	log.Printf("  Keyspace: %s", config.CassandraKeyspace)
-	log.Printf("  Poll interval: %v", config.PollInterval)
-	log.Printf("  Parsers directory: %s", config.ParsersDir)
-	log.Printf("  Redis: %s:%s", config.RedisHost, config.RedisPort)
-	log.Printf("  Queue: %s, Seen set: %s", config.RedisQueue, config.RedisSeenSet)
-	log.Println()
 
 	// Connect to Cassandra
-	log.Println("Connecting to Cassandra...")
 	session, err := ConnectCassandra(config)
 	if err != nil {
 		log.Fatalf("Failed to connect to Cassandra: %v", err)
@@ -33,7 +22,6 @@ func main() {
 	log.Println("Connected to Cassandra")
 
 	// Connect to Redis
-	log.Println("Connecting to Redis...")
 	redisClient, err := ConnectRedis(config)
 	if err != nil {
 		log.Fatalf("Failed to connect to Redis: %v", err)

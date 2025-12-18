@@ -20,7 +20,7 @@ RUN wget -q https://go.dev/dl/go1.21.0.linux-amd64.tar.gz && \
 
 ENV PATH=/usr/local/go/bin:$PATH
 
-# Install ONNX Runtime C/C++ library **v1.23.2** with GPU support
+# Install ONNX Runtime C/C++ library with GPU support
 RUN mkdir -p /tmp/onnxrt && \
     cd /tmp/onnxrt && \
     wget -q https://github.com/microsoft/onnxruntime/releases/download/v1.23.2/onnxruntime-linux-x64-gpu-1.23.2.tgz && \
@@ -41,15 +41,9 @@ ENV CGO_ENABLED=1
 
 WORKDIR /app
 
-# Copy go module files first to leverage Docker cache
 COPY processor/go.mod processor/go.sum ./
 RUN go mod download
-
-# Copy processor source files
 COPY processor/*.go processor/model.onnx processor/tokenizer.json  processor/vocab.txt ./
-
-# Build the processor binary
 RUN go build -o processor .
 
-# Keep container running for manual testing
 CMD ["go", "run", "."]

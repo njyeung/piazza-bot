@@ -1,0 +1,6 @@
+cassandra-driver==3.29.3
+click==8.3.1
+geomet==1.1.0
+sentence-transformers>=2.0.0
+ollama>=0.1.0
+torch>=2.0.0

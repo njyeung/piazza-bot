@@ -10,6 +10,7 @@ import json
 import tempfile
 import glob
 from cassandra.cluster import Cluster
+from cassandra import ConsistencyLevel
 from kafka import KafkaProducer
 from kafka.errors import KafkaError
 
@@ -125,6 +126,8 @@ def main():
         ) VALUES (?, ?, ?, ?, ?, ?, ?, toTimestamp(now()), ?)
     """)
 
+    insert_transcript_stmt.consistency_level = ConsistencyLevel.QUORUM
+
     print(f"Connecting to Redis at {REDIS_HOST}:{REDIS_PORT}")
     r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 
@@ -155,8 +158,7 @@ def main():
                     status = "success"
                 else:
                     status = "missing"
-
-                # Insert into Cassandra
+                
                 session.execute(
                     insert_transcript_stmt,
                     (
@@ -168,7 +170,7 @@ def main():
                         lecture.get("lecture_title"),
                         transcript,
                         status,
-                    ),
+                    )
                 )
 
                 # Send event to Kafka (only for successful transcripts)

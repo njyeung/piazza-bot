@@ -14,4 +14,7 @@ CMD sh -c "cd /kafka_2.12-3.6.2 && \
     bin/kafka-storage.sh format -t $KAFKA_CLUSTER_ID -c config/kraft/server.properties && \
     bin/kafka-server-start.sh config/kraft/server.properties \
         --override advertised.listeners=${KAFKA_ADVERTISED_LISTENERS:-PLAINTEXT://localhost:9092} \
-        --override auto.create.topics.enable=false"
+        --override auto.create.topics.enable=false \
+        --override log.retention.hours=1 \
+        --override log.segment.bytes=104857600 \
+        --override log.retention.check.interval.ms=300000"

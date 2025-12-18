@@ -164,8 +164,17 @@ func process(session *gocql.Session, embeddingModel *EmbeddingModel, event *Tran
 			LectureTimestamp: chunk.StartTime,
 		}
 
+		// insert into embeddings table (RAG)
 		if err := InsertEmbedding(session, row); err != nil {
 			return fmt.Errorf("failed to insert chunk %d: %w", i, err)
+		}
+
+		// Insert into inverted index table (Keyword matching)
+		terms := WordsFromText(chunk.Text)
+		for _, term := range terms {
+			if err := InsertInvertedIndexTerm(session, term, row); err != nil {
+				return fmt.Errorf("\t\tWarning: failed to insert term '%s' for chunk %d: %v\n", term, i, err)
+			}
 		}
 	}
 	fmt.Printf("\tInserted %d chunks to database\n", len(chunks))

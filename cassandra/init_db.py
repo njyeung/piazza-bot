@@ -24,6 +24,9 @@ def create_keyspace(session):
     """Create keyspace with replication factor 3"""
     print(f"\nCreating keyspace: {CASSANDRA_KEYSPACE}")
 
+    # fetch.py has W=1, processor Go has R=3
+    # web scrapers get high throughput, processors are slower anyways
+
     create_keyspace_query = f"""
     CREATE KEYSPACE IF NOT EXISTS {CASSANDRA_KEYSPACE}
     WITH replication = {{
@@ -110,16 +113,50 @@ def create_embeddings_table(session):
     session.execute(embedding_index_query)
     print("Embedding index index 'embedding_idx' created successfully")
 
-    # Create SAI text index for keyword search
-    text_index_query = """
-    CREATE INDEX IF NOT EXISTS text_idx
-    ON embeddings(chunk_text)
-    USING 'SAI'
+def create_inverted_index_table(session):
+    """Create inverted index table for keyword search"""
+    print(f"\nCreating table: {CASSANDRA_KEYSPACE}.keywords")
+
+    session.set_keyspace(CASSANDRA_KEYSPACE)
+
+    create_table_query = """
+    CREATE TABLE IF NOT EXISTS keywords (
+        term text,
+        class_name text,
+        professor text,
+        semester text,
+        url text,
+        chunk_index int,
+        PRIMARY KEY ((term), class_name, professor, semester, url, chunk_index)
+    )
     """
 
-    session.execute(text_index_query)
-    print("Text index 'text_idx' created successfully")
-    
+    session.execute(create_table_query)
+    print("Table 'keywords' created successfully")
+
+def create_piazza_answers_table(session):
+    """Create piazza_answers table for storing generated answers"""
+    print(f"\nCreating table: {CASSANDRA_KEYSPACE}.piazza_answers")
+
+    session.set_keyspace(CASSANDRA_KEYSPACE)
+
+    create_table_query = """
+    CREATE TABLE IF NOT EXISTS piazza_answers (
+        class_name text,
+        professor text,
+        semester text,
+        post_id int,
+        piazza_post text,
+        answer text,
+        status text,
+        created_at timestamp,
+        PRIMARY KEY ((class_name, professor, semester), post_id)
+    )
+    """
+
+    session.execute(create_table_query)
+    print("Table 'piazza_answers' created successfully")
+
 def main():
     """Main initialization function"""
 
@@ -134,6 +171,8 @@ def main():
         create_transcript_table(session)
         create_parsers_table(session)
         create_embeddings_table(session)
+        create_inverted_index_table(session)
+        create_piazza_answers_table(session)
 
         print("\nDatabase initialization completed successfully")
 

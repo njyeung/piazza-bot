@@ -124,7 +124,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
     restart: unless-stopped
 
   kafka_init:
@@ -164,3 +164,27 @@ services:
               capabilities: [gpu]
     restart: unless-stopped
 
+  # Qwen3 4b LLM service
+  llm:
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: llm/Dockerfile
+    container_name: qwen3-llm
+    ports:
+      - "11434:11434"
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    volumes:
+      - ollama-data:/root/.ollama
+
+volumes:
+  ollama-data:
