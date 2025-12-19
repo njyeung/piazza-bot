@@ -1,3 +1,5 @@
+Hi Meena! See "Piazza Bof.pdf"
+
 ## Quick Start
 
 Clone the repository
