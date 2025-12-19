@@ -186,5 +186,49 @@ services:
     volumes:
       - ollama-data:/root/.ollama
 
+  # Piazza Monitor - Polls Piazza and queues posts
+  piazza-monitor:
+    build:
+      context: .
+      dockerfile: piazza-monitor/Dockerfile
+    container_name: piazza-monitor
+    depends_on:
+      redis:
+        condition: service_started
+      db_init:
+        condition: service_completed_successfully
+    environment:
+      - CASSANDRA_HOSTS=db-1,db-2,db-3
+      - CASSANDRA_KEYSPACE=transcript_db
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - POLL_INTERVAL=600
+      - MIN_AGE_SECONDS=600
+    restart: unless-stopped
+
+  # QA Worker - Processes QA jobs from Redis queue
+  qa-worker:
+    build:
+      context: .
+      dockerfile: qa-worker/Dockerfile
+    depends_on:
+      redis:
+        condition: service_started
+      db_init:
+        condition: service_completed_successfully
+      llm:
+        condition: service_started
+    environment:
+      - CASSANDRA_HOSTS=db-1,db-2,db-3
+      - CASSANDRA_KEYSPACE=transcript_db
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - OLLAMA_HOST=http://llm:11434
+      - LLM_MODEL=qwen3:4b
+      - EMBEDDING_MODEL=thenlper/gte-large
+    restart: unless-stopped
+    deploy:
+      replicas: 1
+
 volumes:
   ollama-data:

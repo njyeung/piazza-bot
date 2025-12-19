@@ -1,0 +1,4 @@
+cassandra-driver==3.29.0
+redis==5.0.1
+sentence-transformers==2.2.2
+ollama==0.1.7

@@ -127,6 +127,8 @@ class QATools:
 
             summary = response['message']['content'].strip()
 
+            print(summary)
+
             # Print relevance check progress
             if summary == "NOT RELEVANT":
                 print(f"    Cluster {i}/{len(clusters)}: NOT RELEVANT")

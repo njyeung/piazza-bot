@@ -93,11 +93,38 @@ func ExtractPiazzaConfig(codeText string) (*PiazzaConfig, error) {
 }
 
 // UpsertPiazzaConfig inserts or updates Piazza configuration in Cassandra
+// Only updates (and resets timestamp) if the config values have changed
 func UpsertPiazzaConfig(session *gocql.Session, config *PiazzaConfig) error {
-	query := `INSERT INTO piazza_config (network_id, class_name, professor, semester, email, password)
-	          VALUES (?, ?, ?, ?, ?, ?)`
+	// First, check if existing config matches
+	checkQuery := `SELECT class_name, professor, semester, email, password
+	               FROM piazza_config WHERE network_id = ?`
 
-	if err := session.Query(query,
+	var existingClassName, existingProfessor, existingSemester, existingEmail, existingPassword string
+	err := session.Query(checkQuery, config.NetworkID).Scan(
+		&existingClassName,
+		&existingProfessor,
+		&existingSemester,
+		&existingEmail,
+		&existingPassword,
+	)
+
+	// If row exists and all values match, do nothing
+	if err == nil {
+		if existingClassName == config.ClassName &&
+			existingProfessor == config.Professor &&
+			existingSemester == config.Semester &&
+			existingEmail == config.Email &&
+			existingPassword == config.Password {
+			// Config unchanged, skip update
+			return nil
+		}
+	}
+
+	// Config changed or doesn't exist - insert/update with new timestamp
+	insertQuery := `INSERT INTO piazza_config (network_id, class_name, professor, semester, email, password, created_at)
+	                VALUES (?, ?, ?, ?, ?, ?, toTimestamp(now()))`
+
+	if err := session.Query(insertQuery,
 		config.NetworkID,
 		config.ClassName,
 		config.Professor,

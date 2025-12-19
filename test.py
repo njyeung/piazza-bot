@@ -7,29 +7,32 @@ cluster = Cluster(['localhost'], port=9042)
 session = cluster.connect()
 session.set_keyspace('transcript_db')
 
-query = """SELECT * FROM keywords where term = 'olap'; """
+query = """SELECT * FROM piazza_answers"""
 rows = session.execute(query)
 
-chunk_scores = defaultdict(int)
 for row in rows:
-    key = (row.class_name, row.professor, row.semester, row.url, row.chunk_index)
-    chunk_scores[key] += 1
+    print(row)
 
-print(chunk_scores)
+# chunk_scores = defaultdict(int)
+# for row in rows:
+#     key = (row.class_name, row.professor, row.semester, row.url, row.chunk_index)
+#     chunk_scores[key] += 1
 
-sorted_keys = sorted(chunk_scores.keys(), key=lambda k: chunk_scores[k], reverse=True)[:20]
+# print(chunk_scores)
 
-results = []
-for class_name, professor, semester, url, chunk_index in sorted_keys:
-    rows = session.execute("""
-        SELECT *
-        FROM embeddings
-        WHERE class_name = %s AND professor = %s AND semester = %s AND url = %s AND chunk_index = %s
-    """, (class_name, professor, semester, url, chunk_index))
-    results.append(rows[0])
+# sorted_keys = sorted(chunk_scores.keys(), key=lambda k: chunk_scores[k], reverse=True)[:20]
 
-df = pd.DataFrame(results)
-df.to_csv("test.csv", index=False)
+# results = []
+# for class_name, professor, semester, url, chunk_index in sorted_keys:
+#     rows = session.execute("""
+#         SELECT *
+#         FROM embeddings
+#         WHERE class_name = %s AND professor = %s AND semester = %s AND url = %s AND chunk_index = %s
+#     """, (class_name, professor, semester, url, chunk_index))
+#     results.append(rows[0])
+
+# df = pd.DataFrame(results)
+# df.to_csv("test.csv", index=False)
 
 
 cluster.shutdown()

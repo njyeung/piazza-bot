@@ -1,0 +1,4 @@
+piazza-api==0.13.0
+cassandra-driver==3.29.0
+redis==5.0.1
+beautifulsoup4==4.12.2

@@ -37,6 +37,7 @@ def main():
     service = ChromeService(executable_path="/usr/local/bin/chromedriver")
     driver = webdriver.Chrome(service=service, options=chrome_options)
 
+
     try:
         driver.get(schedule_url)
 
@@ -45,20 +46,37 @@ def main():
             EC.presence_of_element_located((By.TAG_NAME, "a"))
         )
 
-        # Find all <a> tags and filter for lecture links
-        all_links = driver.find_elements(By.TAG_NAME, "a")
+        # Find all lecture divs (col-md-4 my-3)
+        lecture_divs = driver.find_elements(By.CLASS_NAME, "col-md-4")
 
-        for link in all_links:
-            text = link.text
-            if "lecture" in text.lower():
-                href = link.get_attribute("href")
+        for div in lecture_divs:
+            # Find the lecture link (Watch: <a>Lecture</a>)
+            links = div.find_elements(By.TAG_NAME, "a")
+            lecture_link = None
+
+            for link in links:
+                if "lecture" in link.text.lower():
+                    lecture_link = link
+                    break
+
+            if lecture_link:
+                href = lecture_link.get_attribute("href")
+
+                # Find the title from <span id="lec-XX-title">
+                try:
+                    title_span = div.find_element(By.CSS_SELECTOR, "span[id$='-title']")
+                    lecture_title = title_span.text.strip()
+                except:
+                    # Fallback if title span not found
+                    lecture_title = "Unknown"
+
                 if href:
                     lecture_data = {
                         "class_name": "CS544",
                         "professor": "Tyler",
                         "semester": "FALL25",
                         "url": href,
-                        "lecture_title": "FILLER TITLE"
+                        "lecture_title": lecture_title
                     }
                     print(json.dumps(lecture_data))
 

@@ -170,12 +170,31 @@ def create_piazza_config_table(session):
         professor text,
         semester text,
         email text,
-        password text
+        password text,
+        created_at timestamp
     )
     """
 
     session.execute(create_table_query)
     print("Table 'piazza_config' created successfully")
+
+def create_piazza_state_table(session):
+    """Create piazza_state table for tracking last processed post IDs"""
+    print(f"\nCreating table: {CASSANDRA_KEYSPACE}.piazza_state")
+
+    session.set_keyspace(CASSANDRA_KEYSPACE)
+
+    create_table_query = """
+    CREATE TABLE IF NOT EXISTS piazza_state (
+        network_id text PRIMARY KEY,
+        last_processed_post_id int,
+        last_poll_time timestamp,
+        updated_at timestamp
+    )
+    """
+
+    session.execute(create_table_query)
+    print("Table 'piazza_state' created successfully")
 
 def main():
     """Main initialization function"""
@@ -194,6 +213,7 @@ def main():
         create_inverted_index_table(session)
         create_piazza_answers_table(session)
         create_piazza_config_table(session)
+        create_piazza_state_table(session)
 
         print("\nDatabase initialization completed successfully")
 

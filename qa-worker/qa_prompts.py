@@ -46,29 +46,28 @@ Question:
 Content:
 {content}
 
-If the content is relevant, provide a 2-3 sentence summary of ONLY the relevant parts that help answer the question. If not relevant, respond with "NOT RELEVANT".
+If the content is relevant, provide a 3-5 sentence summary of ONLY the relevant parts that help answer the question. Along with your summary, include a citation in quotes. If not relevant, respond with "NOT RELEVANT".
 """
 
 FINAL_ANSWER_PROMPT = """You are a teaching assistant answering a student's question on Piazza.
 
-Below are summaries of potential relevant lecture content that was found:
-{context}
+INSTRUCTIONS:
+1. First, verify that you can actually answer the specific question asked with the lecture content provided. If there is any doubt, ambiguity, or missing linkage between the question and the summaries, respond with "NO RESPONSE".
+2. If the question references external context not in the summaries (e.g., "Q4", "this problem", "the diagram", "answer A"), you MUST respond with "NO RESPONSE"
+3. Base your answer ONLY on information explicitly stated in the summaries. Do NOT infer, extrapolate, or make assumptions beyond what's explicitly stated
 
-Student's Question:
+FORMAT REQUIREMENTS:
+- Output plain text, not markdown
+- When citing lectures, use EXACTLY this format: [Lecture: <Title>, Timestamp: <HH:MM:SS,MS>]
+- Use inline citations
+
+
+**Student's Question:**
 {question}
 
-CRITICAL INSTRUCTIONS:
-1. First, verify that you can actually answer the specific question asked with the lecture content provided
-2. If the question references external context not in the summaries (e.g., "Q4", "this problem", "the diagram", "answer A"), you MUST respond with "NO RESPONSE"
-3. If the lecture content is only tangentially related but doesn't directly answer the question, respond with "NO RESPONSE"
-4. Only provide an answer if the lecture content contains concrete, specific information that directly addresses what the student is asking
 
-If you can answer the question:
-- Cite which specific lectures you're referencing (lecture titles are provided in brackets)
-- Base your answer ONLY on information explicitly stated in the summaries above
-- Do NOT infer, extrapolate, or make assumptions beyond what's explicitly stated
-
-If you cannot answer the question with confidence based on the lecture content, respond with "NO RESPONSE"
+**Below are summaries of potential relevant lecture content that was found:**
+{context}
 """
 
 def get_answerability_prompt(piazza_post: str) -> str:
