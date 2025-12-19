@@ -6,7 +6,7 @@ WORKDIR /app
 COPY qa-worker/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy all qa-worker code (includes qa.py, qa_tools.py, qa_prompts.py, retrieval.py, worker.py)
+# Copy all qa-worker code
 COPY qa-worker/*.py .
 
-CMD ["python", "worker.py"]
+CMD ["python", "-u", "worker.py"]

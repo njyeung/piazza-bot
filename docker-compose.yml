@@ -230,5 +230,21 @@ services:
     deploy:
       replicas: 1
 
+  # API Server - Provides REST API for Chrome extension
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    container_name: piazza-api
+    depends_on:
+      db_init:
+        condition: service_completed_successfully
+    environment:
+      - CASSANDRA_HOSTS=db-1,db-2,db-3
+      - CASSANDRA_KEYSPACE=transcript_db
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+
 volumes:
   ollama-data:

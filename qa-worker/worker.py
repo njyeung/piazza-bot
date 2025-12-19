@@ -10,8 +10,6 @@ import sys
 import redis
 from cassandra.cluster import Cluster
 from sentence_transformers import SentenceTransformer
-
-# Import QA pipeline (in same directory now)
 from qa import run_qa_pipeline, save_answer_to_db
 
 # Configuration

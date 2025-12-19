@@ -1,13 +1,19 @@
-FROM python:3.11-slim
+FROM python:3.11
 
 WORKDIR /app
 
+# Install vim and other debugging tools
+RUN apt-get update && apt-get install -y \
+    vim \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install dependencies
-COPY requirements.txt .
+COPY piazza-monitor/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy monitor code
-COPY monitor.py .
+COPY piazza-monitor/monitor.py .
 
-# Command will be specified in docker-compose
-CMD ["python", "monitor.py"]
+CMD ["python", "-u", "monitor.py"]

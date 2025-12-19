@@ -1,7 +1,12 @@
 """Simplified retrieval orchestrator for single-pass Q&A system"""
-import ollama
+import os
+from ollama import Client
 from retrieval import vector_search, keyword_search, expand_chunks
 from qa_prompts import get_relevance_prompt, get_keyword_extraction_prompt
+
+# Configure Ollama client to use LLM container
+OLLAMA_HOST = os.getenv('OLLAMA_HOST', 'http://localhost:11434')
+ollama_client = Client(host=OLLAMA_HOST)
 
 
 class QATools:
@@ -39,7 +44,7 @@ class QATools:
         """
         prompt = get_keyword_extraction_prompt(self.piazza_post)
 
-        response = ollama.chat(
+        response = ollama_client.chat(
             model=self.model,
             messages=[{'role': 'user', 'content': prompt}]
         )
@@ -120,7 +125,7 @@ class QATools:
         for i, cluster in enumerate(clusters, 1):
             prompt = get_relevance_prompt(self.piazza_post, cluster['text'])
 
-            response = ollama.chat(
+            response = ollama_client.chat(
                 model=self.model,
                 messages=[{'role': 'user', 'content': prompt}]
             )

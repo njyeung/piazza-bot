@@ -153,6 +153,7 @@ def process_course(course, cassandra_session, redis_client):
 
         # Login to Piazza
         piazza = Piazza()
+        print(course)
         piazza.user_login(email=course['email'], password=course['password'])
         network = piazza.network(network_id)
 

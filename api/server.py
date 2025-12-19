@@ -7,21 +7,15 @@ app = Flask(__name__)
 CORS(app)  # Enable CORS for Chrome extension
 
 # Cassandra configuration
-CASSANDRA_HOSTS = ['localhost']
-KEYSPACE = 'transcript_db'
+import os
+CASSANDRA_HOSTS = os.getenv('CASSANDRA_HOSTS', 'localhost').split(',')
+KEYSPACE = os.getenv('CASSANDRA_KEYSPACE', 'transcript_db')
 
 # Initialize Cassandra connection
 cluster = Cluster(CASSANDRA_HOSTS)
 session = cluster.connect(KEYSPACE)
 
 print("Connected to Cassandra")
-
-
-@app.route('/health', methods=['GET'])
-def health():
-    """Health check endpoint"""
-    return jsonify({"status": "ok"})
-
 
 @app.route('/answer', methods=['GET'])
 def get_answer():
