@@ -7,7 +7,7 @@ cd piazza-bot
 ```
 
 Implement parsers
-- Since each professor has their own unique website, if a user wishes to scrape a website that does not already have a parser written for it, they must write a parser to print kaltura gallery links obtained from that website using the format: https://mediaspace.wisc.edu/media/<lecture title>/<entry_id>
+- Since each professor has their own unique website, if a user wishes to scrape a website that does not already have a parser written for it, they must write a parser to print kaltura gallery links (and other metadata) obtained from that website.
 - This parser will be a python file placed in `/piazza-bot/parsers/`
 - Refer to demo.py as an example
 - To upload the new parsers to the cassandra database, the user must run ‘’python manage.py apply’’
